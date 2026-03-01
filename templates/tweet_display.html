@@ -1,0 +1,721 @@
+{% extends "base.html" %}
+
+{% block title %}{{ '长文' if tweet.is_article else '推文' }} - {{ tweet.author_username }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="{% if tweet.is_article %}col-lg-8{% else %}col-lg-6{% endif %}">
+            <div class="tweet-container{% if tweet.is_article %} is-article{% endif %}">
+                <!-- 推文头部 -->
+                <div class="tweet-header">
+                    <div class="user-avatar">
+                        {% if tweet.avatar_file %}
+                        <img src="{{ tweet.avatar_file.url }}" alt="User Avatar" class="avatar-image">
+                        {% else %}
+                        <i class="bi bi-person-circle"></i>
+                        {% endif %}
+                    </div>
+                    <div class="user-info">
+                        <div class="display-name">
+                            {{ tweet.author_name }}
+                            {% if tweet.is_article %}
+                            <span class="article-badge"><i class="bi bi-file-text"></i> 长文</span>
+                            {% endif %}
+                        </div>
+                        <div class="username">@{{ tweet.author_username }}</div>
+                    </div>
+                    <div class="tweet-actions">
+                        <a href="{{ tweet.url }}" target="_blank" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% if is_logged_in %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteTweet()">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 推文内容 -->
+                <div class="tweet-body">
+                    <!-- Reader模式显示 -->
+                    {% if tweet.html_content %}
+                    <div class="tweet-html" id="html-view">
+                        <div class="html-content">
+                            {{ tweet.html_content | safe }}
+                        </div>
+                        {% if tweet.is_thread %}
+                        <br><span class="thread-badge">推文串 ({{ tweet.tweet_count }} 条)</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <!-- 文本格式显示（仅在没有HTML内容时使用） -->
+                    <div class="tweet-text" id="text-view">
+                        {{ tweet.text | autolink | nl2br | safe }}
+                        {% if tweet.is_thread %}
+                        <br><span class="thread-badge">推文串 ({{ tweet.tweet_count }} 条)</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- 媒体文件（长文不显示，图片已内嵌在正文中） -->
+                    {% if tweet.media_files and not tweet.is_article %}
+                    <div class="media-container">
+                        {% for media in tweet.media_files %}
+                        {% if media.type == 'image' %}
+                        <img src="{{ media.url }}" alt="推文图片" class="media-image">
+                        {% elif media.type == 'video' %}
+                        <video controls class="media-video">
+                            <source src="{{ media.url }}" type="video/mp4">
+                            您的浏览器不支持视频播放。
+                        </video>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 标签显示 -->
+                {% if tweet.tags %}
+                <div class="tweet-tags">
+                    {% for tag in tweet.tags %}
+                    <span class="tag-badge">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- 推文信息 -->
+                <div class="tweet-footer">
+                    <div class="tweet-time">{{ tweet.processed_at | format_datetime }}</div>
+                    {% if tweet.media_count > 0 %}
+                    <div class="media-count">{{ tweet.media_count }} 个媒体文件</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 图片点击放大
+        const images = document.querySelectorAll('.media-image');
+        images.forEach(img => {
+            img.addEventListener('click', function () {
+                const overlay = document.createElement('div');
+                overlay.className = 'image-overlay';
+                overlay.innerHTML = `
+                <div class="overlay-content">
+                    <img src="${this.src}" class="overlay-image">
+                    <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+            `;
+                document.body.appendChild(overlay);
+            });
+        });
+    });
+
+
+    // 删除推文函数
+    function deleteTweet() {
+        // 显示确认对话框
+        if (true) {
+            // 使用服务端传入的数字 task_id（URL 可能是 slug，不能直接解析）
+            const taskId = {{ task_id }};
+
+        // 显示加载状态
+        const deleteBtn = document.querySelector('button[onclick="deleteTweet()"]');
+        const originalText = deleteBtn.innerHTML;
+        deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>删除中...';
+        deleteBtn.disabled = true;
+
+        // 发送删除请求
+        fetch(`/delete/${taskId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 删除成功，显示成功消息并跳转
+                    showNotification('推文删除成功', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/saved';
+                    }, 1500);
+                } else {
+                    // 删除失败，显示错误消息
+                    showNotification('删除失败: ' + data.message, 'error');
+                    deleteBtn.innerHTML = originalText;
+                    deleteBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('删除请求失败:', error);
+                showNotification('删除请求失败，请重试', 'error');
+                deleteBtn.innerHTML = originalText;
+                deleteBtn.disabled = false;
+            });
+    }
+    }
+
+    // 显示通知消息
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+        <div class="notification-content">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+        document.body.appendChild(notification);
+
+        // 显示动画
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+
+        // 自动隐藏
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+</script>
+
+<style>
+    /* 推文容器 */
+    .tweet-container {
+        background: white;
+        border: 1px solid #e1e8ed;
+        border-radius: 16px;
+        margin: 20px 0;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+
+    /* 推文头部 */
+    .tweet-header {
+        display: flex;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #f7f9fa;
+    }
+
+    .user-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #f7f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+    }
+
+    .user-avatar i {
+        font-size: 24px;
+        color: #657786;
+    }
+
+    .avatar-image {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .user-info {
+        flex: 1;
+    }
+
+    .display-name {
+        font-weight: bold;
+        font-size: 15px;
+        color: #14171a;
+    }
+
+    .username {
+        font-size: 15px;
+        color: #657786;
+    }
+
+    .tweet-actions {
+        margin-left: auto;
+    }
+
+    /* 推文内容 */
+    .tweet-body {
+        padding: 16px 20px;
+    }
+
+    .tweet-text {
+        font-size: 16px;
+        line-height: 1.5;
+        color: #14171a;
+        margin-bottom: 16px;
+        word-wrap: break-word;
+    }
+
+    .tweet-text a {
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .tweet-text a:hover {
+        text-decoration: underline;
+    }
+
+    .tweet-text .text-primary {
+        color: #1da1f2 !important;
+    }
+
+    .tweet-text .text-info {
+        color: #1da1f2 !important;
+    }
+
+    .tweet-text .text-success {
+        color: #1da1f2 !important;
+    }
+
+    .thread-badge {
+        background: #1da1f2;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+    }
+
+    /* 长文标识徽章 */
+    .article-badge {
+        background: linear-gradient(135deg, #1da1f2, #0d8ecf);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 6px;
+        vertical-align: middle;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+    }
+
+    /* 长文容器加宽内边距 */
+    .tweet-container.is-article .tweet-body {
+        padding: 24px 28px;
+    }
+
+
+
+    /* HTML内容样式 */
+    .tweet-html {
+        font-size: 16px;
+        line-height: 1.5;
+        color: #14171a;
+        margin-bottom: 16px;
+        word-wrap: break-word;
+    }
+
+    .html-content {
+        padding: 0;
+        background: none;
+        border: none;
+        border-radius: 0;
+        font-family: inherit;
+        box-shadow: none;
+    }
+
+    /* 长文专用排版样式 */
+    .is-article .html-content {
+        font-size: 17px;
+        line-height: 1.75;
+    }
+
+    .html-content h1 {
+        font-size: 1.75em;
+        font-weight: 700;
+        margin: 1.2em 0 0.6em;
+        color: #0f1419;
+        line-height: 1.3;
+        border-bottom: 2px solid #e1e8ed;
+        padding-bottom: 0.3em;
+    }
+
+    .html-content h2 {
+        font-size: 1.4em;
+        font-weight: 700;
+        margin: 1em 0 0.5em;
+        color: #0f1419;
+        line-height: 1.35;
+    }
+
+    .html-content h3,
+    .html-content h4,
+    .html-content h5,
+    .html-content h6 {
+        font-size: 1.15em;
+        font-weight: 600;
+        margin: 0.8em 0 0.4em;
+        color: #14171a;
+    }
+
+    .html-content blockquote {
+        border-left: 4px solid #1da1f2;
+        margin: 1em 0;
+        padding: 0.5em 1em;
+        background: #f7f9fa;
+        border-radius: 0 8px 8px 0;
+        color: #536471;
+        font-style: italic;
+    }
+
+    .html-content ul,
+    .html-content ol {
+        padding-left: 1.5em;
+        margin: 0.75em 0;
+    }
+
+    .html-content li {
+        margin: 0.4em 0;
+        line-height: 1.65;
+    }
+
+    .html-content code {
+        background: #f0f3f4;
+        padding: 0.15em 0.4em;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+        color: #e0245e;
+    }
+
+    .html-content pre {
+        background: #f0f3f4;
+        padding: 1em;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 1em 0;
+    }
+
+    .html-content pre code {
+        background: none;
+        padding: 0;
+        color: #14171a;
+    }
+
+    .html-content hr {
+        border: none;
+        border-top: 1px solid #e1e8ed;
+        margin: 1.5em 0;
+    }
+
+    .html-content figure,
+    .html-content img {
+        max-width: 100%;
+        border-radius: 8px;
+        margin: 1em auto;
+        display: block;
+    }
+
+    .html-content a {
+        color: #1da1f2;
+        text-decoration: none;
+    }
+
+    .html-content a:hover {
+        text-decoration: underline;
+    }
+
+    .html-content p {
+        margin-bottom: 12px;
+    }
+
+    .html-content p:last-child {
+        margin-bottom: 0;
+    }
+
+    .html-content span {
+        color: inherit;
+    }
+
+    .html-content strong,
+    .html-content b {
+        font-weight: bold;
+        color: #14171a;
+    }
+
+    .html-content em,
+    .html-content i {
+        font-style: italic;
+    }
+
+    /* 保持Twitter样式的链接 */
+    .html-content a[href*="twitter.com"],
+    .html-content a[href*="x.com"] {
+        color: #1da1f2;
+        font-weight: 500;
+    }
+
+    /* Hashtags和@mentions样式 */
+    .html-content a[href*="/hashtag/"],
+    .html-content a[href*="/search?q=%23"] {
+        color: #1da1f2;
+        font-weight: 500;
+    }
+
+    .html-content a[href^="/"] {
+        color: #1da1f2;
+        font-weight: 500;
+    }
+
+    /* 推文串HTML显示样式 */
+    .thread-tweet {
+        margin-bottom: 16px;
+        padding: 12px;
+        border: 1px solid #e1e8ed;
+        border-radius: 8px;
+        background: white;
+    }
+
+    .thread-tweet:last-child {
+        margin-bottom: 0;
+    }
+
+    .thread-number {
+        display: inline-block;
+        background: #1da1f2;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+
+    /* 媒体容器 */
+    .media-container {
+        margin-top: 12px;
+    }
+
+    .media-image {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .media-image:hover {
+        transform: scale(1.02);
+    }
+
+    .media-video {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        background: #000;
+    }
+
+    /* 标签样式 */
+    .tweet-tags {
+        padding: 12px 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tag-badge {
+        background: #0d6efd;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 500;
+        display: inline-block;
+        transition: all 0.2s ease;
+    }
+
+    .tag-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+    }
+
+    /* 推文底部 */
+    .tweet-footer {
+        padding: 12px 20px;
+        border-top: 1px solid #f7f9fa;
+        background: #f7f9fa;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tweet-time,
+    .media-count {
+        font-size: 13px;
+        color: #657786;
+    }
+
+    /* 图片覆盖层 */
+    .image-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .overlay-content {
+        position: relative;
+        max-width: 90%;
+        max-height: 90%;
+    }
+
+    .overlay-image {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 8px;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 30px;
+        cursor: pointer;
+        padding: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .close-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .tweet-container {
+            margin: 10px;
+            border-radius: 12px;
+        }
+
+        .tweet-header,
+        .tweet-body,
+        .tweet-footer {
+            padding: 12px 16px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+        }
+
+        .user-avatar i {
+            font-size: 20px;
+        }
+    }
+
+    /* 通知消息样式 */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        min-width: 300px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .notification.show {
+        transform: translateX(0);
+    }
+
+    .notification-success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .notification-error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .notification-content {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .notification-content i {
+        font-size: 16px;
+    }
+
+    /* 删除按钮加载状态 */
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .spinner-border-sm {
+        width: 0.875rem;
+        height: 0.875rem;
+    }
+
+    /* 打印样式 */
+    @media print {
+        .tweet-actions {
+            display: none;
+        }
+
+        .tweet-container {
+            box-shadow: none;
+            border: 2px solid #1da1f2;
+        }
+
+        .media-video {
+            display: none;
+        }
+
+        .media-video::after {
+            content: "[视频文件]";
+            display: block;
+            padding: 20px;
+            text-align: center;
+            background: #f0f0f0;
+            border-radius: 12px;
+        }
+
+        .notification {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}

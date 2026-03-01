@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+
+{% block title %}系统调试 - Twitter内容保存工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-bug"></i> 系统调试信息</h2>
+    <button class="btn btn-outline-primary" onclick="loadDebugInfo()">
+        <i class="bi bi-arrow-clockwise"></i> 刷新
+    </button>
+</div>
+
+<div class="row">
+    <!-- 系统状态 -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> 系统状态</h5>
+            </div>
+            <div class="card-body">
+                <div id="system-status">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 服务状态 -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-server"></i> 服务状态</h5>
+            </div>
+            <div class="card-body">
+                <div id="services-status">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 配置信息 -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-sliders"></i> 配置信息</h5>
+            </div>
+            <div class="card-body">
+                <div id="config-info">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 队列信息 -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> 队列信息</h5>
+            </div>
+            <div class="card-body">
+                <div id="queue-info">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        加载中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近任务 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> 最近任务详情</h5>
+    </div>
+    <div class="card-body">
+        <div id="recent-tasks">
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                加载中...
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 实时日志 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-terminal"></i> 实时日志</h5>
+        <div>
+            <button class="btn btn-sm btn-outline-success" id="log-stream-toggle" onclick="toggleLogStream()">
+                <i class="bi bi-play-fill"></i> <span id="log-stream-text">启动日志流</span>
+            </button>
+            <button class="btn btn-sm btn-outline-info" onclick="testLogCapture()">
+                <i class="bi bi-bug"></i> 测试日志
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="forceStartQueue()">
+                <i class="bi bi-play-fill"></i> 强制启动队列
+            </button>
+            <button class="btn btn-sm btn-outline-warning" onclick="resetStuckTasks()">
+                <i class="bi bi-arrow-clockwise"></i> 重置卡住任务
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()">
+                <i class="bi bi-trash"></i> 清空
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick="toggleAutoRefresh()">
+                <i class="bi bi-arrow-repeat"></i> <span id="auto-refresh-text">开启自动刷新</span>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="mb-2">
+            <span id="log-status" class="badge bg-secondary">日志流未连接</span>
+            <span id="log-count" class="badge bg-info">0 条日志</span>
+        </div>
+        <div id="logs" style="height: 400px; overflow-y: auto; background-color: #000; color: #00ff00; padding: 10px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 11px; line-height: 1.3;">
+            <div class="text-muted">点击"启动日志流"开始接收实时日志...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let autoRefreshInterval = null;
+    let isAutoRefresh = false;
+    let eventSource = null;
+    let logCount = 0;
+    
+    // 加载调试信息
+    function loadDebugInfo() {
+        fetch('/api/debug')
+            .then(response => response.json())
+            .then(data => {
+                updateSystemStatus(data);
+                updateServicesStatus(data.services_status);
+                updateConfigInfo(data.config_info);
+                updateQueueInfo(data);
+                updateRecentTasks(data.recent_tasks);
+                
+                // 只在状态有变化时记录日志
+                checkAndLogStatusChanges(data);
+            })
+            .catch(error => {
+                console.error('Error loading debug info:', error);
+                addLog(`[ERROR] 加载调试信息失败: ${error}`);
+            });
+    }
+    
+    // 更新系统状态
+    function updateSystemStatus(data) {
+        const container = document.getElementById('system-status');
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-6">
+                    <strong>当前时间:</strong><br>
+                    <span class="text-muted">${data.current_time}</span>
+                </div>
+                <div class="col-6">
+                    <strong>处理状态:</strong><br>
+                    <span class="${data.is_processing ? 'text-success' : 'text-secondary'}">
+                        <i class="bi bi-circle-fill"></i> ${data.is_processing ? '处理中' : '空闲'}
+                    </span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 更新服务状态
+    function updateServicesStatus(services) {
+        const container = document.getElementById('services-status');
+        let html = '<div class="row">';
+        
+        const serviceNames = {
+            'config_manager': '配置管理器',
+            'twitter_service': 'Twitter服务',
+            'media_downloader': '媒体下载器',
+            'file_manager': '文件管理器',
+            'processing_thread_alive': '处理线程',
+            'processing_thread_exists': '线程存在'
+        };
+        
+        Object.entries(services).forEach(([key, value]) => {
+            const name = serviceNames[key] || key;
+            const statusClass = value ? 'text-success' : 'text-danger';
+            const icon = value ? 'check-circle-fill' : 'x-circle-fill';
+            
+            html += `
+                <div class="col-12 mb-2">
+                    <i class="bi bi-${icon} ${statusClass}"></i>
+                    <strong>${name}:</strong> 
+                    <span class="${statusClass}">${value ? '正常' : '异常'}</span>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    // 更新配置信息
+    function updateConfigInfo(config) {
+        const container = document.getElementById('config-info');
+        
+        if (config.error) {
+            container.innerHTML = `<div class="alert alert-danger">配置错误: ${config.error}</div>`;
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-12 mb-2">
+                    <strong>Bearer Token:</strong> 
+                    <span class="${config.bearer_token_configured ? 'text-success' : 'text-danger'}">
+                        ${config.bearer_token_configured ? `已配置 (${config.bearer_token_length}字符)` : '未配置'}
+                    </span>
+                </div>
+                <div class="col-12 mb-2">
+                    <strong>保存路径:</strong> <code>${config.save_path || '未设置'}</code>
+                </div>
+                <div class="col-6 mb-2">
+                    <strong>最大重试:</strong> ${config.max_retries || 'N/A'}
+                </div>
+                <div class="col-6 mb-2">
+                    <strong>超时时间:</strong> ${config.timeout_seconds || 'N/A'}s
+                </div>
+                <div class="col-12">
+                    <strong>创建日期文件夹:</strong> 
+                    <span class="${config.create_date_folders ? 'text-success' : 'text-secondary'}">
+                        ${config.create_date_folders ? '是' : '否'}
+                    </span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 更新队列信息
+    function updateQueueInfo(data) {
+        const container = document.getElementById('queue-info');
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <div class="text-center">
+                        <h4 class="text-primary">${data.queue_size}</h4>
+                        <small class="text-muted">队列中任务</small>
+                    </div>
+                </div>
+                <div class="col-6 mb-3">
+                    <div class="text-center">
+                        <h4 class="${data.is_processing ? 'text-success' : 'text-secondary'}">
+                            <i class="bi bi-${data.is_processing ? 'play-fill' : 'pause-fill'}"></i>
+                        </h4>
+                        <small class="text-muted">${data.is_processing ? '处理中' : '空闲'}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 更新最近任务
+    function updateRecentTasks(tasks) {
+        const container = document.getElementById('recent-tasks');
+        
+        if (!tasks || tasks.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center">暂无任务</div>';
+            return;
+        }
+        
+        let html = '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>ID</th><th>状态</th><th>URL</th><th>创建时间</th><th>错误信息</th></tr></thead><tbody>';
+        
+        tasks.forEach(task => {
+            const statusClass = {
+                'pending': 'warning',
+                'processing': 'info',
+                'completed': 'success',
+                'failed': 'danger'
+            }[task.status] || 'secondary';
+            
+            html += `
+                <tr>
+                    <td>${task.id}</td>
+                    <td><span class="badge bg-${statusClass}">${task.status}</span></td>
+                    <td><small>${task.url.substring(0, 50)}...</small></td>
+                    <td><small>${task.created_at || 'N/A'}</small></td>
+                    <td><small class="text-danger">${task.error_message || ''}</small></td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+    
+    // 状态跟踪变量
+    let lastQueueSize = -1;
+    let lastProcessingStatus = null;
+    let lastTaskStatuses = {};
+    
+    // 检查并记录状态变化 - 只在实时日志流未启用时才使用
+    function checkAndLogStatusChanges(data) {
+        // 如果实时日志流已启用，跳过这些状态变化日志
+        if (eventSource) {
+            return;
+        }
+        
+        const currentTime = new Date().toLocaleTimeString();
+        
+        // 检查队列大小变化
+        if (lastQueueSize !== -1 && lastQueueSize !== data.queue_size) {
+            addLog(`[${currentTime}] 队列大小变化: ${lastQueueSize} → ${data.queue_size}`);
+        }
+        lastQueueSize = data.queue_size;
+        
+        // 检查处理状态变化
+        if (lastProcessingStatus !== null && lastProcessingStatus !== data.is_processing) {
+            addLog(`[${currentTime}] 处理状态变化: ${lastProcessingStatus ? '处理中' : '空闲'} → ${data.is_processing ? '处理中' : '空闲'}`);
+        }
+        lastProcessingStatus = data.is_processing;
+        
+        // 检查任务状态变化
+        if (data.recent_tasks) {
+            data.recent_tasks.forEach(task => {
+                const taskKey = `task_${task.id}`;
+                if (lastTaskStatuses[taskKey] && lastTaskStatuses[taskKey] !== task.status) {
+                    addLog(`[${currentTime}] 任务${task.id}状态变化: ${lastTaskStatuses[taskKey]} → ${task.status}`);
+                    if (task.error_message) {
+                        addLog(`[${currentTime}] 任务${task.id}错误: ${task.error_message}`);
+                    }
+                }
+                lastTaskStatuses[taskKey] = task.status;
+            });
+        }
+    }
+    
+    // 添加日志
+    function addLog(message) {
+        const logsContainer = document.getElementById('logs');
+        const logEntry = document.createElement('div');
+        logEntry.textContent = message;
+        logEntry.style.marginBottom = '2px';
+        
+        // 根据消息类型设置颜色
+        if (message.includes('ERROR') || message.includes('错误')) {
+            logEntry.style.color = '#dc3545';
+        } else if (message.includes('SUCCESS') || message.includes('完成')) {
+            logEntry.style.color = '#198754';
+        } else if (message.includes('⚠️') || message.includes('同步问题')) {
+            logEntry.style.color = '#fd7e14';
+            logEntry.style.fontWeight = 'bold';
+        }
+        
+        logsContainer.appendChild(logEntry);
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+        
+        // 限制日志条数
+        const logs = logsContainer.children;
+        if (logs.length > 100) {
+            logsContainer.removeChild(logs[0]);
+        }
+    }
+    
+    // 清空日志
+    function clearLogs() {
+        document.getElementById('logs').innerHTML = '<div class="text-muted">日志已清空...</div>';
+        logCount = 0;
+        updateLogCount();
+    }
+    
+    // 启动/关闭日志流
+    function toggleLogStream() {
+        if (eventSource) {
+            stopLogStream();
+        } else {
+            startLogStream();
+        }
+    }
+    
+    // 启动日志流
+    function startLogStream() {
+        if (eventSource) {
+            return;
+        }
+        
+        const statusElement = document.getElementById('log-status');
+        const toggleButton = document.getElementById('log-stream-toggle');
+        const toggleText = document.getElementById('log-stream-text');
+        const toggleIcon = toggleButton.querySelector('i');
+        
+        statusElement.textContent = '正在连接...';
+        statusElement.className = 'badge bg-warning';
+        
+        // 首先获取最近的日志
+        fetch('/api/logs/recent')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.logs) {
+                    const logsContainer = document.getElementById('logs');
+                    logsContainer.innerHTML = '';
+                    
+                    data.logs.forEach(log => {
+                        addRealTimeLog(log);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Failed to load recent logs:', error);
+            });
+        
+        // 创建EventSource连接
+        eventSource = new EventSource('/api/logs/stream');
+        
+        eventSource.onopen = function(event) {
+            statusElement.textContent = '日志流已连接';
+            statusElement.className = 'badge bg-success';
+            toggleText.textContent = '停止日志流';
+            toggleIcon.className = 'bi bi-stop-fill';
+            toggleButton.className = 'btn btn-sm btn-outline-danger';
+        };
+        
+        eventSource.onmessage = function(event) {
+            if (event.data.trim()) {
+                addRealTimeLog(event.data);
+            }
+        };
+        
+        eventSource.onerror = function(event) {
+            console.error('EventSource failed:', event);
+            statusElement.textContent = '连接错误';
+            statusElement.className = 'badge bg-danger';
+            
+            // 尝试重新连接
+            setTimeout(() => {
+                if (eventSource && eventSource.readyState === EventSource.CLOSED) {
+                    stopLogStream();
+                    setTimeout(startLogStream, 2000);
+                }
+            }, 1000);
+        };
+    }
+    
+    // 停止日志流
+    function stopLogStream() {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        
+        const statusElement = document.getElementById('log-status');
+        const toggleButton = document.getElementById('log-stream-toggle');
+        const toggleText = document.getElementById('log-stream-text');
+        const toggleIcon = toggleButton.querySelector('i');
+        
+        statusElement.textContent = '日志流未连接';
+        statusElement.className = 'badge bg-secondary';
+        toggleText.textContent = '启动日志流';
+        toggleIcon.className = 'bi bi-play-fill';
+        toggleButton.className = 'btn btn-sm btn-outline-success';
+    }
+    
+    // 添加实时日志
+    function addRealTimeLog(logText) {
+        const logsContainer = document.getElementById('logs');
+        const logEntry = document.createElement('div');
+        logEntry.style.marginBottom = '1px';
+        logEntry.style.wordBreak = 'break-all';
+        
+        // 处理日志文本，添加颜色
+        let processedText = logText;
+        let color = '#00ff00'; // 默认绿色
+        
+        // 根据日志内容设置不同颜色
+        if (logText.includes('[ERROR]') || logText.includes('ERROR') || logText.includes('failed') || logText.includes('Failed')) {
+            color = '#ff4444'; // 红色
+        } else if (logText.includes('[SUCCESS]') || logText.includes('Successfully') || logText.includes('✓')) {
+            color = '#44ff44'; // 亮绿色
+        } else if (logText.includes('[WARNING]') || logText.includes('WARNING') || logText.includes('⚠️')) {
+            color = '#ffaa00'; // 橙色
+        } else if (logText.includes('[INFO]') || logText.includes('Starting') || logText.includes('Starting')) {
+            color = '#44aaff'; // 蓝色
+        } else if (logText.includes('[Task') || logText.includes('Queue Processor')) {
+            color = '#aa44ff'; // 紫色
+        } else if (logText.includes('[PlaywrightScraper]') || logText.includes('[TwitterService]')) {
+            color = '#ffff44'; // 黄色
+        }
+        
+        logEntry.style.color = color;
+        logEntry.textContent = processedText;
+        
+        logsContainer.appendChild(logEntry);
+        
+        // 自动滚动到底部
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+        
+        // 限制日志条数，避免内存占用过多
+        const logs = logsContainer.children;
+        if (logs.length > 500) {
+            logsContainer.removeChild(logs[0]);
+        }
+        
+        logCount++;
+        updateLogCount();
+    }
+    
+    // 更新日志计数
+    function updateLogCount() {
+        document.getElementById('log-count').textContent = `${logCount} 条日志`;
+    }
+    
+    // 测试日志捕获
+    function testLogCapture() {
+        fetch('/api/logs/test')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Test log response:', data);
+                if (data.success) {
+                    addRealTimeLog(`[INFO] 日志测试完成，缓冲区大小: ${data.buffer_size}`);
+                    if (data.latest_logs && data.latest_logs.length > 0) {
+                        addRealTimeLog(`[INFO] 最新日志: ${data.latest_logs[data.latest_logs.length - 1]}`);
+                    }
+                }
+            })
+            .catch(error => {
+                addRealTimeLog(`[ERROR] 日志测试失败: ${error}`);
+            });
+    }
+    
+    // 强制启动队列
+    function forceStartQueue() {
+        addLog('[INFO] 正在强制启动队列处理器...');
+        
+        fetch('/force_start_queue')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog(`[SUCCESS] ${data.message}`);
+                    addLog(`[INFO] 队列大小: ${data.queue_size}`);
+                    // 刷新调试信息
+                    setTimeout(() => {
+                        loadDebugInfo();
+                    }, 1000);
+                } else {
+                    addLog(`[ERROR] 启动失败: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                addLog(`[ERROR] 请求失败: ${error}`);
+            });
+    }
+    
+    // 重置卡住的任务
+    function resetStuckTasks() {
+        addLog('[INFO] 正在重置卡住的任务...');
+        
+        fetch('/reset_stuck_tasks')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog(`[SUCCESS] ${data.message}`);
+                    addLog(`[INFO] 队列大小: ${data.queue_size}`);
+                    // 刷新调试信息
+                    setTimeout(() => {
+                        loadDebugInfo();
+                    }, 1000);
+                } else {
+                    addLog(`[ERROR] 重置失败: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                addLog(`[ERROR] 请求失败: ${error}`);
+            });
+    }
+    
+    // 切换自动刷新
+    function toggleAutoRefresh() {
+        const button = document.getElementById('auto-refresh-text');
+        
+        if (isAutoRefresh) {
+            clearInterval(autoRefreshInterval);
+            isAutoRefresh = false;
+            button.textContent = '开启自动刷新';
+            addLog('[INFO] 自动刷新已关闭');
+        } else {
+            autoRefreshInterval = setInterval(() => {
+                loadDebugInfo();
+            }, 3000);
+            isAutoRefresh = true;
+            button.textContent = '关闭自动刷新';
+            addLog('[INFO] 自动刷新已开启 (3秒间隔)');
+        }
+    }
+    
+    // 初始加载
+    loadDebugInfo();
+    
+    // 默认开启自动刷新
+    setTimeout(() => {
+        toggleAutoRefresh();
+    }, 1000);
+    
+    // 页面卸载时清理资源
+    window.addEventListener('beforeunload', function() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+        if (eventSource) {
+            eventSource.close();
+        }
+    });
+</script>
+{% endblock %}

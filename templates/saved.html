@@ -1,0 +1,895 @@
+{% extends "base.html" %}
+
+{% block title %}已保存推文 - Twitter内容保存工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-archive"></i> 已保存推文</h2>
+    <button class="btn btn-outline-primary" onclick="loadSaved()">
+        <i class="bi bi-arrow-clockwise"></i> 刷新
+    </button>
+</div>
+
+<!-- 搜索栏 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="input-group">
+            <input type="text" id="search-input" class="form-control" placeholder="搜索推文内容或作者..."
+                onkeypress="handleSearchKeyPress(event)">
+            <button class="btn btn-primary" onclick="performSearch()">
+                <i class="bi bi-search"></i> <span class="d-none d-sm-inline">搜索</span>
+            </button>
+        </div>
+        <div id="search-status" class="mt-2 hidden">
+            <small class="text-muted">
+                <span id="search-results-info"></span>
+                <button class="btn btn-link btn-sm p-0 ms-2" onclick="clearSearch()">清除搜索</button>
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- 标签筛选状态栏 -->
+<div id="tag-filter-bar" class="tag-filter-bar hidden">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <i class="bi bi-funnel-fill me-2"></i>
+            <span class="me-2">按标签筛选:</span>
+            <span class="tag-filter-badge">
+                <span id="current-tag-name"></span>
+                <span class="remove-filter" onclick="clearTagFilter()">×</span>
+            </span>
+        </div>
+        <small class="text-muted" id="tag-filter-results"></small>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div id="loading" class="text-center py-4">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+        </div>
+
+        <div id="saved-container" class="hidden">
+            <div class="row" id="saved-grid">
+                <!-- 推文卡片将在这里动态加载 -->
+            </div>
+
+            <!-- 懒加载状态指示器 -->
+            <div id="lazy-loading" class="text-center py-4 hidden">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">加载更多...</span>
+                </div>
+                <p class="text-muted mt-2 mb-0">加载更多推文...</p>
+            </div>
+
+            <!-- 加载完毕提示 -->
+            <div id="no-more-data" class="text-center py-4 hidden">
+                <i class="bi bi-check-circle text-success"></i>
+                <p class="text-muted mt-2 mb-0">已加载全部推文</p>
+            </div>
+        </div>
+
+        <div id="no-saved" class="text-center py-4 hidden">
+            <i class="bi bi-archive large-icon"></i>
+            <p class="text-muted mt-2">暂无已保存的推文</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    /* 通知消息样式 */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        min-width: 300px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .notification.show {
+        transform: translateX(0);
+    }
+
+    .notification-success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .notification-error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .notification-content {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .notification-content i {
+        font-size: 16px;
+    }
+
+    /* 删除按钮加载状态 */
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .spinner-border-sm {
+        width: 0.875rem;
+        height: 0.875rem;
+    }
+
+    /* 卡片删除动画 */
+    .col-md-6 {
+        transition: opacity 0.3s ease;
+    }
+
+    /* 删除按钮悬停效果 */
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+    }
+
+    /* 用户头像样式 - 与推文详情页保持一致 */
+    .user-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #f7f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .user-avatar i {
+        font-size: 24px;
+        color: #657786;
+    }
+
+    /* 头像图片样式 - 直接复制推文详情页面的工作样式 */
+    .avatar-image {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    /* 用户信息样式 - 与推文详情页保持一致 */
+    .user-info {
+        flex: 1;
+    }
+
+    .display-name {
+        font-weight: bold;
+        font-size: 15px;
+        color: #14171a;
+        line-height: 1.2;
+    }
+
+    .username {
+        font-size: 14px;
+        color: #657786;
+        line-height: 1.2;
+    }
+
+    /* 推文预览样式 */
+    .tweet-preview {
+        border-left: 3px solid #1da1f2;
+        padding-left: 12px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 8px 12px;
+    }
+
+    .tweet-preview p {
+        font-size: 14px;
+        line-height: 1.4;
+        margin-bottom: 0;
+        color: #14171a;
+    }
+
+    /* 小头像容器样式 */
+    .avatar-small {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        max-width: 24px !important;
+        max-height: 24px !important;
+        border-radius: 50% !important;
+        background: #f7f9fa;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden !important;
+    }
+
+    .avatar-small i {
+        font-size: 12px !important;
+        color: #657786;
+    }
+
+    /* 小头像图片样式 - 最高优先级 */
+    .avatar-image-small,
+    img.avatar-image-small,
+    .avatar-small .avatar-image-small,
+    .card .avatar-small .avatar-image-small,
+    .card .card-body .avatar-small .avatar-image-small {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        max-width: 24px !important;
+        max-height: 24px !important;
+        border-radius: 50% !important;
+        object-fit: cover !important;
+        display: block !important;
+    }
+
+    /* 通用img标签在avatar-small容器内 */
+    .avatar-small img,
+    .card .avatar-small img,
+    .card .card-body .avatar-small img {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        max-width: 24px !important;
+        max-height: 24px !important;
+        border-radius: 50% !important;
+        object-fit: cover !important;
+    }
+
+    /* 占位框样式 */
+    .placeholder-box {
+        background-color: transparent;
+        border: none;
+        border-radius: 6px;
+        height: 240px;
+        overflow: hidden;
+        position: relative;
+        color: #8b5a6b;
+        font-size: 14px;
+        text-align: center;
+    }
+
+    /* 媒体预览图片样式 */
+    .placeholder-box .media-preview {
+        width: 100%;
+        height: 240px;
+        object-fit: cover;
+        border-radius: 6px;
+        display: block;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* 通用隐藏类 */
+    .hidden {
+        display: none;
+    }
+
+    /* 大图标样式 */
+    .large-icon {
+        font-size: 3rem;
+        color: #6c757d;
+    }
+
+    /* 标签样式 */
+    .tag-badge {
+        font-size: 12px;
+        font-weight: 500;
+        padding: 4px 10px;
+        margin-right: 4px;
+        margin-bottom: 4px;
+        border-radius: 12px;
+        display: inline-block;
+        transition: all 0.2s ease;
+    }
+
+    .tag-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* 标签筛选状态栏 */
+    .tag-filter-bar {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+    }
+
+    .tag-filter-badge {
+        background: #0d6efd;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tag-filter-badge .remove-filter {
+        cursor: pointer;
+        font-weight: bold;
+        opacity: 0.8;
+    }
+
+    .tag-filter-badge .remove-filter:hover {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    const perPage = 12;
+    let currentSearchQuery = '';
+    let currentTagFilter = '';  // 当前标签筛选
+    let isLoading = false;
+    let hasMoreData = true;
+    let isInitialLoad = true;
+
+    // 辅助函数：显示元素
+    function showElement(element) {
+        element.classList.remove('hidden');
+    }
+
+    // 辅助函数：隐藏元素
+    function hideElement(element) {
+        element.classList.add('hidden');
+    }
+
+    // 加载已保存推文列表
+    function loadSaved(page = 1, searchQuery = '', append = false) {
+        // 防止重复加载
+        if (isLoading) return;
+
+        const loading = document.getElementById('loading');
+        const container = document.getElementById('saved-container');
+        const noSaved = document.getElementById('no-saved');
+        const searchStatus = document.getElementById('search-status');
+        const lazyLoading = document.getElementById('lazy-loading');
+        const noMoreData = document.getElementById('no-more-data');
+
+        isLoading = true;
+
+        if (!append) {
+            // 首次加载或搜索时显示主加载器
+            showElement(loading);
+            hideElement(container);
+            hideElement(noSaved);
+            isInitialLoad = true;
+        } else {
+            // 懒加载时显示懒加载器
+            showElement(lazyLoading);
+            hideElement(noMoreData);
+        }
+
+        const params = new URLSearchParams({
+            page: page,
+            per_page: perPage
+        });
+
+        if (searchQuery) {
+            params.append('search', searchQuery);
+        }
+
+        fetch(`/api/saved?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                isLoading = false;
+                hideElement(loading);
+                hideElement(lazyLoading);
+
+                if (data.saved.length === 0) {
+                    if (append) {
+                        // 懒加载时没有更多数据
+                        hasMoreData = false;
+                        showElement(noMoreData);
+                        return;
+                    }
+
+                    // 首次加载时没有数据
+                    if (searchQuery) {
+                        noSaved.innerHTML = `
+                            <i class="bi bi-search large-icon"></i>
+                            <p class="text-muted mt-2">未找到匹配"${searchQuery}"的推文</p>
+                        `;
+                    } else {
+                        noSaved.innerHTML = `
+                            <i class="bi bi-archive large-icon"></i>
+                            <p class="text-muted mt-2">暂无已保存的推文</p>
+                        `;
+                    }
+                    showElement(noSaved);
+                    return;
+                }
+
+                showElement(container);
+
+                if (append) {
+                    // 懒加载：追加到现有内容
+                    appendSaved(data.saved);
+                } else {
+                    // 首次加载或搜索：替换内容
+                    renderSaved(data.saved);
+                }
+
+                currentPage = page;
+
+                // 检查是否还有更多数据
+                if (data.saved.length < perPage) {
+                    hasMoreData = false;
+                    if (!isInitialLoad) {
+                        showElement(noMoreData);
+                    }
+                } else {
+                    hasMoreData = true;
+                }
+
+                isInitialLoad = false;
+
+                // 更新搜索状态显示
+                if (searchQuery && !append) {
+                    document.getElementById('search-results-info').textContent = `找到 ${data.total} 条匹配"${searchQuery}"的结果`;
+                    showElement(searchStatus);
+                } else if (!searchQuery && !append) {
+                    hideElement(searchStatus);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading saved tweets:', error);
+                isLoading = false;
+                hideElement(loading);
+                hideElement(lazyLoading);
+
+                if (!append) {
+                    showNotification('加载已保存推文失败', 'error');
+                } else {
+                    showNotification('加载更多推文失败', 'error');
+                }
+            });
+    }
+
+    // 执行搜索
+    function performSearch() {
+        const searchInput = document.getElementById('search-input');
+        const searchQuery = searchInput.value.trim();
+        currentSearchQuery = searchQuery;
+        currentPage = 1;
+        hasMoreData = true;
+        hideElement(document.getElementById('no-more-data'));
+        loadSaved(1, searchQuery, false);
+    }
+
+    // 清除搜索
+    function clearSearch() {
+        document.getElementById('search-input').value = '';
+        currentSearchQuery = '';
+        currentPage = 1;
+        hasMoreData = true;
+        hideElement(document.getElementById('search-status'));
+        hideElement(document.getElementById('no-more-data'));
+        loadSaved(1, '', false);
+    }
+
+    // 按标签筛选
+    function filterByTag(tagName) {
+        currentTagFilter = tagName;
+        currentPage = 1;
+        hasMoreData = true;
+        currentSearchQuery = '';  // 清除搜索
+        document.getElementById('search-input').value = '';
+
+        // 显示标签筛选状态栏
+        document.getElementById('current-tag-name').textContent = tagName;
+        showElement(document.getElementById('tag-filter-bar'));
+        hideElement(document.getElementById('search-status'));
+        hideElement(document.getElementById('no-more-data'));
+
+        // 加载数据
+        loadSavedByTag(tagName, 1, false);
+    }
+
+    // 清除标签筛选
+    function clearTagFilter() {
+        currentTagFilter = '';
+        currentPage = 1;
+        hasMoreData = true;
+        hideElement(document.getElementById('tag-filter-bar'));
+        hideElement(document.getElementById('no-more-data'));
+        loadSaved(1, '', false);
+    }
+
+    // 按标签加载推文
+    function loadSavedByTag(tagName, page = 1, append = false) {
+        // 防止重复加载
+        if (isLoading) return;
+
+        const loading = document.getElementById('loading');
+        const container = document.getElementById('saved-container');
+        const noSaved = document.getElementById('no-saved');
+        const lazyLoading = document.getElementById('lazy-loading');
+        const noMoreData = document.getElementById('no-more-data');
+
+        isLoading = true;
+
+        if (!append) {
+            // 首次加载时显示主加载器
+            showElement(loading);
+            hideElement(container);
+            hideElement(noSaved);
+            isInitialLoad = true;
+        } else {
+            // 懒加载时显示懒加载器
+            showElement(lazyLoading);
+            hideElement(noMoreData);
+        }
+
+        const params = new URLSearchParams({
+            tag: tagName,
+            page: page,
+            per_page: perPage
+        });
+
+        fetch(`/api/saved/by-tag?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                isLoading = false;
+                hideElement(loading);
+                hideElement(lazyLoading);
+
+                if (data.saved.length === 0) {
+                    if (append) {
+                        // 懒加载时没有更多数据
+                        hasMoreData = false;
+                        showElement(noMoreData);
+                        return;
+                    }
+
+                    // 首次加载时没有数据
+                    noSaved.innerHTML = `
+                        <i class="bi bi-tag large-icon"></i>
+                        <p class="text-muted mt-2">未找到标签"${tagName}"的推文</p>
+                    `;
+                    showElement(noSaved);
+                    return;
+                }
+
+                showElement(container);
+
+                if (append) {
+                    // 懒加载：追加到现有内容
+                    appendSaved(data.saved);
+                } else {
+                    // 首次加载：替换内容
+                    renderSaved(data.saved);
+                }
+
+                currentPage = page;
+
+                // 检查是否还有更多数据
+                if (data.saved.length < perPage) {
+                    hasMoreData = false;
+                    if (!isInitialLoad) {
+                        showElement(noMoreData);
+                    }
+                } else {
+                    hasMoreData = true;
+                }
+
+                isInitialLoad = false;
+
+                // 更新标签筛选结果显示
+                if (!append) {
+                    document.getElementById('tag-filter-results').textContent = `找到 ${data.total} 条结果`;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading tweets by tag:', error);
+                isLoading = false;
+                hideElement(loading);
+                hideElement(lazyLoading);
+
+                if (!append) {
+                    showNotification('加载推文失败', 'error');
+                } else {
+                    showNotification('加载更多推文失败', 'error');
+                }
+            });
+    }
+
+    // 处理搜索框回车键
+    function handleSearchKeyPress(event) {
+        if (event.key === 'Enter') {
+            performSearch();
+        }
+    }
+
+    // 渲染已保存推文
+    function renderSaved(saved) {
+        const grid = document.getElementById('saved-grid');
+        grid.innerHTML = '';
+        addTweetsToGrid(saved);
+    }
+
+    // 追加已保存推文（懒加载用）
+    function appendSaved(saved) {
+        addTweetsToGrid(saved);
+    }
+
+    // 添加推文到网格
+    function addTweetsToGrid(saved) {
+        const grid = document.getElementById('saved-grid');
+
+        saved.forEach(item => {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 col-lg-4 mb-4';
+
+            // 推文类型标识
+            const typeIcon = item.is_thread ?
+                '<i class="bi bi-collection text-primary" title="推文串"></i>' :
+                '<i class="bi bi-chat-square-text text-secondary" title="单条推文"></i>';
+
+            // 媒体文件标识
+            let mediaIcons = '';
+            if (item.media_count > 0) {
+                mediaIcons = `<i class="bi bi-image text-success" title="${item.media_count}个媒体文件"></i>`;
+            }
+
+            col.innerHTML = `
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="d-flex align-items-center">
+                                <div class="user-avatar me-3">
+                                    ${item.has_avatar ?
+                    `<img src="${item.avatar_url}" alt="Avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">` :
+                    '<i class="bi bi-person-circle"></i>'
+                }
+                                </div>
+                                <div class="user-info">
+                                    <div class="display-name">${item.author_name || item.author_username}</div>
+                                    <div class="username">@${item.author_username}</div>
+                                </div>
+                            </div>
+                            <div>
+                                ${typeIcon}
+                                ${mediaIcons}
+                            </div>
+                        </div>
+                        
+                        <!-- 推文内容预览 -->
+                        <div class="tweet-preview mb-3">
+                            <p class="mb-2 text-dark">${item.preview_text || '预览内容不可用'}</p>
+                        </div>
+                        
+                        <!-- 占位框 - 仅在有实际媒体预览时显示 -->
+                        ${item.has_media_preview ?
+                    `<div class="placeholder-box mb-3">
+                                <img src="/media/${item.id}/preview" alt="Media preview" class="media-preview" onload="console.log('Image loaded:', this.naturalWidth, 'x', this.naturalHeight, 'Current size:', this.offsetWidth, 'x', this.offsetHeight)">
+                            </div>` :
+                    ''
+                }
+                        
+                        <!-- 标签显示 -->
+                        ${item.tags && item.tags.length > 0 ?
+                    `<div class="mb-3">
+                                ${item.tags.map(tag =>
+                        `<span class="badge bg-primary tag-badge" onclick="filterByTag('${tag.name}')" style="cursor: pointer;" title="点击筛选">${tag.name}</span>`
+                    ).join(' ')}
+                            </div>` :
+                    ''
+                }
+
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar"></i> ${item.processed_at}
+                            </small>
+                        </div>
+
+                        ${item.is_thread ?
+                    `<p class="text-info small"><i class="bi bi-collection"></i> 推文串 (${item.tweet_count} 条)</p>` :
+                    ''
+                }
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="/view/${item.share_slug || item.id}" class="btn btn-primary btn-sm me-1" target="_blank">
+                                    <i class="bi bi-eye"></i> 查看
+                                </a>
+                                <a href="${item.url}" class="btn btn-outline-secondary btn-sm" target="_blank">
+                                    <i class="bi bi-box-arrow-up-right"></i> 原文
+                                </a>
+                            </div>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteTweetFromList(${item.id}, this)" title="删除推文">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            grid.appendChild(col);
+        });
+    }
+
+    // 滚动加载更多数据
+    function loadMoreData() {
+        if (!hasMoreData || isLoading) return;
+
+        const nextPage = currentPage + 1;
+
+        // 根据当前模式选择不同的加载函数
+        if (currentTagFilter) {
+            loadSavedByTag(currentTagFilter, nextPage, true);
+        } else {
+            loadSaved(nextPage, currentSearchQuery, true);
+        }
+    }
+
+    // 检查是否需要加载更多数据
+    function checkScrollPosition() {
+        if (!hasMoreData || isLoading) return;
+
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+
+        // 当滚动到距离底部300px时触发加载
+        if (scrollTop + windowHeight >= documentHeight - 300) {
+            loadMoreData();
+        }
+    }
+
+
+    // 节流函数，防止滚动事件触发过于频繁
+    function throttle(func, delay) {
+        let timeoutId;
+        let lastExecTime = 0;
+        return function (...args) {
+            const currentTime = Date.now();
+
+            if (currentTime - lastExecTime > delay) {
+                func.apply(this, args);
+                lastExecTime = currentTime;
+            } else {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                    lastExecTime = Date.now();
+                }, delay - (currentTime - lastExecTime));
+            }
+        };
+    }
+
+    // 从列表中删除推文
+    function deleteTweetFromList(taskId, buttonElement) {
+        // if (confirm('确定要删除这条推文吗？\n\n删除后将无法恢复，包括所有媒体文件。')) {
+        if (true) {
+            // 显示加载状态
+            const originalHTML = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            buttonElement.disabled = true;
+
+            // 发送删除请求
+            fetch(`/delete/${taskId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 删除成功，显示通知并移除卡片
+                        showNotification('推文删除成功', 'success');
+
+                        // 找到并移除对应的卡片
+                        const card = buttonElement.closest('.col-md-6');
+                        if (card) {
+                            card.style.transition = 'opacity 0.3s ease';
+                            card.style.opacity = '0';
+                            setTimeout(() => {
+                                card.remove();
+                                // 检查是否需要重新加载页面（如果当前页没有推文了）
+                                const remainingCards = document.querySelectorAll('#saved-grid .col-md-6, #saved-grid .col-lg-4');
+                                if (remainingCards.length === 0) {
+                                    // 重置状态并重新加载
+                                    currentPage = 1;
+                                    hasMoreData = true;
+                                    loadSaved(1, currentSearchQuery, false);
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        // 删除失败，恢复按钮状态
+                        showNotification('删除失败: ' + data.message, 'error');
+                        buttonElement.innerHTML = originalHTML;
+                        buttonElement.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('删除请求失败:', error);
+                    showNotification('删除请求失败，请重试', 'error');
+                    buttonElement.innerHTML = originalHTML;
+                    buttonElement.disabled = false;
+                });
+        }
+    }
+
+    // 显示通知消息
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        // 显示动画
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+
+        // 自动隐藏
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // 初始化滚动事件监听器
+    const throttledScrollCheck = throttle(checkScrollPosition, 200);
+    window.addEventListener('scroll', throttledScrollCheck);
+
+    // 当窗口大小改变时也检查一下滚动位置
+    window.addEventListener('resize', throttledScrollCheck);
+
+    // 检查URL参数，如果有tag参数则自动筛选
+    function checkUrlParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tagParam = urlParams.get('tag');
+
+        if (tagParam) {
+            // 自动按标签筛选
+            filterByTag(tagParam);
+        } else {
+            // 正常加载
+            loadSaved();
+        }
+    }
+
+    // 初始加载
+    checkUrlParams();
+</script>
+{% endblock %}

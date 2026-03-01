@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}标签管理 - Twitter内容保存工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-tags"></i> 标签管理</h2>
+    <button class="btn btn-outline-primary" onclick="loadTags()">
+        <i class="bi bi-arrow-clockwise"></i> 刷新
+    </button>
+</div>
+
+<!-- 统计信息卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="bi bi-tag-fill stats-icon text-primary"></i>
+                <h3 class="mb-0" id="total-tags">-</h3>
+                <p class="text-muted mb-0">总标签数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="bi bi-robot stats-icon text-success"></i>
+                <h3 class="mb-0" id="auto-tags">-</h3>
+                <p class="text-muted mb-0">AI生成</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="bi bi-pencil stats-icon text-info"></i>
+                <h3 class="mb-0" id="manual-tags">-</h3>
+                <p class="text-muted mb-0">手动添加</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="bi bi-file-text stats-icon text-warning"></i>
+                <h3 class="mb-0" id="tagged-tweets">-</h3>
+                <p class="text-muted mb-0">已标记推文</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 标签列表 -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">所有标签</h5>
+    </div>
+    <div class="card-body">
+        <div id="loading" class="text-center py-4">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+        </div>
+
+        <div id="tags-container" class="hidden">
+            <div class="row" id="tags-grid">
+                <!-- 标签卡片将在这里动态加载 -->
+            </div>
+        </div>
+
+        <div id="no-tags" class="text-center py-4 hidden">
+            <i class="bi bi-tags large-icon"></i>
+            <p class="text-muted mt-2">暂无标签</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+/* 统计卡片 */
+.stats-card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stats-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+}
+
+.stats-card h3 {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 标签卡片 */
+.tag-card {
+    border: 1px solid #e1e8ed;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    background: white;
+}
+
+.tag-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #0d6efd;
+}
+
+.tag-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #14171a;
+    margin-bottom: 8px;
+}
+
+.tag-badge-large {
+    background: #0d6efd;
+    color: white;
+    padding: 6px 16px;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.tag-stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.tag-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #657786;
+}
+
+.tag-stat-item i {
+    font-size: 16px;
+}
+
+.tag-type-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.badge-auto {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-manual {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+/* 通用样式 */
+.hidden {
+    display: none;
+}
+
+.large-icon {
+    font-size: 3rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 辅助函数：显示元素
+    function showElement(element) {
+        element.classList.remove('hidden');
+    }
+
+    // 辅助函数：隐藏元素
+    function hideElement(element) {
+        element.classList.add('hidden');
+    }
+
+    // 加载所有标签
+    function loadTags() {
+        const loading = document.getElementById('loading');
+        const container = document.getElementById('tags-container');
+        const noTags = document.getElementById('no-tags');
+
+        showElement(loading);
+        hideElement(container);
+        hideElement(noTags);
+
+        fetch('/api/tags/all')
+            .then(response => response.json())
+            .then(data => {
+                hideElement(loading);
+
+                if (data.success && data.tags.length > 0) {
+                    renderTags(data.tags);
+                    updateStats(data.tags);
+                    showElement(container);
+                } else {
+                    showElement(noTags);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading tags:', error);
+                hideElement(loading);
+                showNotification('加载标签失败', 'error');
+            });
+    }
+
+    // 渲染标签列表
+    function renderTags(tags) {
+        const grid = document.getElementById('tags-grid');
+        grid.innerHTML = '';
+
+        tags.forEach(tag => {
+            const col = document.createElement('div');
+            col.className = 'col-md-4 col-lg-3';
+
+            const typeLabel = tag.is_auto_generated ?
+                '<span class="tag-type-badge badge-auto">AI生成</span>' :
+                '<span class="tag-type-badge badge-manual">手动</span>';
+
+            col.innerHTML = `
+                <div class="tag-card" onclick="filterByTag('${tag.name}')">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="tag-badge-large">${tag.name}</span>
+                        ${typeLabel}
+                    </div>
+                    <div class="tag-stats">
+                        <div class="tag-stat-item">
+                            <i class="bi bi-file-text"></i>
+                            <span>${tag.tweet_count} 条推文</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            grid.appendChild(col);
+        });
+    }
+
+    // 更新统计信息
+    function updateStats(tags) {
+        const totalTags = tags.length;
+        const autoTags = tags.filter(t => t.is_auto_generated).length;
+        const manualTags = tags.filter(t => !t.is_auto_generated).length;
+
+        // 计算已标记的推文总数（去重）
+        const taggedTweets = tags.reduce((sum, tag) => {
+            return Math.max(sum, tag.tweet_count);
+        }, 0);
+
+        document.getElementById('total-tags').textContent = totalTags;
+        document.getElementById('auto-tags').textContent = autoTags;
+        document.getElementById('manual-tags').textContent = manualTags;
+        document.getElementById('tagged-tweets').textContent = taggedTweets;
+    }
+
+    // 点击标签跳转到已保存页面并筛选
+    function filterByTag(tagName) {
+        // 跳转到已保存页面，并通过URL参数传递标签
+        window.location.href = `/saved?tag=${encodeURIComponent(tagName)}`;
+    }
+
+    // 显示通知消息
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // 初始加载
+    loadTags();
+</script>
+{% endblock %}
