@@ -209,6 +209,9 @@ secret_key.txt
 .claude/
 CLAUDE.md
 
+# Implementation plans (local only)
+docs/plans/
+
 # Debug HTML artifacts
 article_debug*.html
 
