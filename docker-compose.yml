@@ -9,7 +9,7 @@ services:
       # Saved tweets and media
       - ./docker-data/saved_tweets:/app/saved_tweets
       # Config file (copy config.ini.example to config.ini first)
-      - ./config.ini:/app/config.ini:ro
+      - ./config.ini:/app/config.ini
     environment:
       - DATA_DIR=/data
       - SAVE_PATH=/app/saved_tweets
