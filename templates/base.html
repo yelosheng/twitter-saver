@@ -122,13 +122,33 @@
                         </a>
                     </li>
                 </ul>
-                <div id="status-indicator" class="text-light">
-                    <small>
-                        <i id="queue-icon" class="bi bi-list-task"></i>
-                        <span id="queue-size">Queue: 0</span> |
-                        <i id="processing-icon" class="bi bi-pause-circle"></i>
-                        <span id="processing-status">Idle</span>
-                    </small>
+                <div class="d-flex align-items-center gap-3">
+                    <div id="status-indicator" class="text-light">
+                        <small>
+                            <i id="queue-icon" class="bi bi-list-task"></i>
+                            <span id="queue-size">Queue: 0</span> |
+                            <i id="processing-icon" class="bi bi-pause-circle"></i>
+                            <span id="processing-status">Idle</span>
+                        </small>
+                    </div>
+                    <div class="dropdown">
+                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('change_password') }}">
+                                    <i class="bi bi-key"></i> Change Password
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
