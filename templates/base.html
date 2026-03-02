@@ -132,10 +132,10 @@
                         </small>
                     </div>
                     <div class="dropdown">
-                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle"></i> {{ username }}
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('change_password') }}">
                                     <i class="bi bi-key"></i> Change Password
