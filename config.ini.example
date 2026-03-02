@@ -22,3 +22,8 @@ debug_mode = false
 # Optional: Claude API key (alternative to Gemini)
 # Get yours at https://console.anthropic.com/
 # claude_api_key = YOUR_CLAUDE_API_KEY_HERE
+
+[telegram]
+# Optional: Telegram bot token for receiving tweet URLs via Telegram
+# Create a bot at https://t.me/BotFather and paste the token here
+# bot_token = YOUR_TELEGRAM_BOT_TOKEN_HERE

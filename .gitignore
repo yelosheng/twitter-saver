@@ -201,6 +201,7 @@ credentials.json
 nul
 
 users.json
+telegram_owner.json
 
 # Runtime secrets
 secret_key.txt
