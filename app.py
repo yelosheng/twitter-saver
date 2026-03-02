@@ -1321,12 +1321,12 @@ def help_page():
     """帮助页面"""
     return render_template('help.html')
 
-@app.route('/tampermonkey/twitter-archiver.user.js')
+@app.route('/tampermonkey/twitter-saver.user.js')
 def serve_userscript():
     """Serve the Tampermonkey userscript file directly."""
     return send_from_directory(
         os.path.join(os.path.dirname(__file__), 'tampermonkey'),
-        'twitter-archiver.user.js',
+        'twitter-saver.user.js',
         mimetype='application/javascript'
     )
 

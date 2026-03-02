@@ -29,8 +29,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/yelosheng/twitter-archiver.git
-cd twitter-archiver
+git clone https://github.com/yelosheng/twitter-saver.git
+cd twitter-saver
 
 # 2. 安装 Python 依赖
 pip install -r requirements.txt
@@ -168,7 +168,7 @@ saved_tweets/
 **配置后端地址：**
 点击 Tampermonkey 扩展图标 → 找到脚本 → 点击 **⚙️ 设置后端地址**，输入你的服务地址（默认为 `http://localhost:6201`）。
 
-脚本文件位于 `tampermonkey/twitter-archiver.user.js`。
+脚本文件位于 `tampermonkey/twitter-saver.user.js`。
 
 ---
 

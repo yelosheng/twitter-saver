@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Twitter/X Archiver Save Button
-// @namespace    https://github.com/yelosheng/twitter-archiver
+// @name         Twitter/X Saver Save Button
+// @namespace    https://github.com/yelosheng/twitter-saver
 // @version      2.0
 // @description  在 Twitter/X 推文下添加保存按钮，一键归档到本地服务
 // @author       yelosheng

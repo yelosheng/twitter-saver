@@ -29,8 +29,8 @@ Archive tweets and media from Twitter/X to local storage using browser automatio
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yelosheng/twitter-archiver.git
-cd twitter-archiver
+git clone https://github.com/yelosheng/twitter-saver.git
+cd twitter-saver
 
 # 2. Install Python dependencies
 pip install -r requirements.txt
@@ -167,7 +167,7 @@ A Tampermonkey userscript adds a save button directly to each tweet on Twitter/X
 **Configure backend URL:**
 Click the Tampermonkey icon → find the script → click **⚙️ 设置后端地址** to set your server address (default: `http://localhost:6201`).
 
-The script is located at `tampermonkey/twitter-archiver.user.js`.
+The script is located at `tampermonkey/twitter-saver.user.js`.
 
 ---
 
