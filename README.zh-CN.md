@@ -18,7 +18,10 @@
 - 保存完整元数据（作者信息、发布时间等）为 JSON
 - 内置任务队列与失败重试机制（指数退避）
 - Web UI 支持实时日志流、任务监控和内容浏览
+- 已保存页面支持瀑布加载和分页两种浏览模式（可切换，偏好本地保存）
 - 每条归档内容可生成唯一分享链接
+- 支持在 Web UI 用户菜单直接修改密码
+- 可选：Telegram 机器人——向私人 Bot 发送链接即可触发保存
 - 可选：基于 Gemini API 的 AI 智能标签生成
 - 可选：通过 FFmpeg 生成视频缩略图
 
@@ -51,10 +54,7 @@ python run_web.py
 
 浏览器访问 `http://localhost:6201`，默认登录账号：`admin` / 密码：`admin`。
 
-> **首次登录后请立即修改密码：**
-> ```bash
-> python tools/change_password.py
-> ```
+> **首次登录后请立即修改密码：** 点击右上角用户菜单 → **修改密码**。
 
 ---
 
@@ -72,6 +72,7 @@ python run_web.py
 | `[scraper] headless` | 无头模式运行浏览器 | `true` |
 | `[scraper] debug_mode` | 调试模式，出错时保存截图 | `false` |
 | `[ai] gemini_api_key` | Gemini API 密钥（可选，用于 AI 标签） | 未设置 |
+| `[telegram] bot_token` | Telegram 机器人令牌（可选，用于 Telegram 集成） | 未设置 |
 
 **环境变量覆盖：**
 
@@ -100,6 +101,7 @@ python run_web.py
 | `/retries` | 查看失败任务并手动重试 |
 | `/view/<slug>` | 通过分享链接查看归档内容 |
 | `/debug` | 系统状态和卡死任务重置 |
+| `/telegram` | Telegram 机器人配置 |
 | `/help` | 油猴脚本安装说明 |
 
 ### 命令行
@@ -150,7 +152,7 @@ saved_tweets/
 
 归档成功后可自动为推文生成语义标签，帮助分类和检索。生成方法按优先级排列：
 
-1. **Gemini API** — 在 `config.ini` 中设置 `gemini_api_key`（推荐，免费额度充足）。提示词模板位于 `prompts.ini`，可自定义。
+1. **Gemini API** — 在 `config.ini` 中设置 `gemini_api_key`（推荐，免费额度充足）。
 2. **规则匹配** — 无需 API 密钥，基于内置关键词规则自动生成基础标签。
 
 通过 Web 界面的 `/tags` 页面可管理所有标签，也可在 `/saved` 页面对单条内容手动触发标签生成。
@@ -170,6 +172,22 @@ saved_tweets/
 点击 Tampermonkey 扩展图标 → 找到脚本 → 点击 **⚙️ 设置后端地址**，输入你的服务地址（默认为 `http://localhost:6201`）。
 
 脚本文件位于 `tampermonkey/twitter-saver.user.js`。
+
+---
+
+## 🤖 Telegram 机器人（可选）
+
+向自己的私人 Telegram 机器人发送或转发推文链接，即可触发保存任务。
+
+**配置步骤：**
+1. 通过 [@BotFather](https://t.me/BotFather) 创建机器人，复制 Token
+2. 在 Web 界面访问 `/telegram`，粘贴 Token 并点击 **保存并启动机器人**
+3. 在 Telegram 中打开机器人，发送 `/start` — 你将成为永久所有者
+4. 发送或转发任意推文链接，机器人会将其加入队列并回复任务 ID
+
+**机器人指令：**
+- 包含 Twitter/X 链接的消息 → 加入保存队列
+- `/status` — 显示当前队列大小
 
 ---
 

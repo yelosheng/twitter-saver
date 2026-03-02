@@ -18,7 +18,10 @@ A self-hosted tweet saver for your NAS, home server, or Raspberry Pi. Archive tw
 - Saves complete metadata (author, timestamp, etc.) as JSON
 - Built-in task queue with automatic retry on failure (exponential backoff)
 - Web UI with real-time log streaming, task monitoring, and content browsing
+- Saved tweets page supports infinite scroll and pagination (toggle per preference)
 - Each archived tweet gets a unique public share link
+- Change password via the in-app user menu
+- Optional: Telegram bot — save tweets by sending links to your private bot
 - Optional: AI-powered tag generation via Gemini API
 - Optional: video thumbnails via FFmpeg
 
@@ -51,10 +54,7 @@ python run_web.py
 
 Open `http://localhost:6201` in your browser. Default login: `admin` / `admin`.
 
-> **Change the default password immediately after first login:**
-> ```bash
-> python tools/change_password.py
-> ```
+> **Change the default password immediately after first login:** click the user menu (top-right) → **Change Password**.
 
 ---
 
@@ -72,6 +72,7 @@ Copy `config.ini.example` to `config.ini` and edit as needed.
 | `[scraper] headless` | Run browser in headless mode | `true` |
 | `[scraper] debug_mode` | Save screenshots on errors | `false` |
 | `[ai] gemini_api_key` | Gemini API key (optional, for AI tags) | unset |
+| `[telegram] bot_token` | Telegram bot token (optional, for Telegram integration) | unset |
 
 **Environment variable overrides:**
 
@@ -100,6 +101,7 @@ Visit `http://localhost:6201` after starting.
 | `/retries` | View failed tasks and retry manually |
 | `/view/<slug>` | View archived content via share link |
 | `/debug` | System status and stuck task reset |
+| `/telegram` | Telegram bot configuration |
 | `/help` | Tampermonkey script installation guide |
 
 ### CLI
@@ -149,7 +151,7 @@ saved_tweets/
 
 Automatically generates semantic tags after each successful archive to aid categorization and search. Priority order:
 
-1. **Gemini API** — set `gemini_api_key` in `config.ini` (recommended; generous free tier). Prompt template is in `prompts.ini`.
+1. **Gemini API** — set `gemini_api_key` in `config.ini` (recommended; generous free tier).
 2. **Rule-based** — no API key required; uses built-in keyword rules for basic tagging.
 
 Manage tags on the `/tags` page, or trigger generation for individual items on the `/saved` page.
@@ -169,6 +171,22 @@ A Tampermonkey userscript adds a save button directly to each tweet on Twitter/X
 Click the Tampermonkey icon → find the script → click **⚙️ 设置后端地址** to set your server address (default: `http://localhost:6201`).
 
 The script is located at `tampermonkey/twitter-saver.user.js`.
+
+---
+
+## 🤖 Telegram Bot (Optional)
+
+Save tweets by sending or forwarding tweet links to your own private Telegram bot.
+
+**Setup:**
+1. Create a bot via [@BotFather](https://t.me/BotFather) and copy the token
+2. Visit `/telegram` in the web UI, paste the token, and click **Save & Start Bot**
+3. Open your bot in Telegram and send `/start` — you become the permanent owner
+4. Send or forward any tweet link — the bot queues it and replies with the task ID
+
+**Bot commands:**
+- Any message containing a Twitter/X URL → adds to queue
+- `/status` — shows current queue size
 
 ---
 
