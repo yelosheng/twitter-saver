@@ -5,9 +5,21 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-archive"></i> Saved Tweets</h2>
-    <button class="btn btn-outline-primary" onclick="loadSaved()">
-        <i class="bi bi-arrow-clockwise"></i> Refresh
-    </button>
+    <div class="d-flex align-items-center gap-2">
+        <div class="btn-group btn-group-sm" role="group" aria-label="View mode">
+            <button type="button" class="btn btn-outline-secondary" id="btn-infinite"
+                    onclick="setViewMode('infinite')" title="Infinite Scroll">
+                <i class="bi bi-arrow-down-circle"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="btn-paginated"
+                    onclick="setViewMode('paginated')" title="Pagination">
+                <i class="bi bi-file-earmark-text"></i>
+            </button>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" onclick="reloadSaved()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
 </div>
 
 <!-- Search bar -->
@@ -54,6 +66,17 @@
             <div id="no-more-data" class="text-center py-4 hidden">
                 <i class="bi bi-check-circle text-success"></i>
                 <p class="text-muted mt-2 mb-0">All tweets loaded</p>
+            </div>
+
+            <!-- Pagination controls -->
+            <div id="pagination-controls" class="d-flex justify-content-between align-items-center mt-3 hidden">
+                <button class="btn btn-outline-secondary btn-sm" id="btn-prev" onclick="goToPrevPage()">
+                    <i class="bi bi-chevron-left"></i> Prev
+                </button>
+                <span id="page-info" class="text-muted small">Page 1</span>
+                <button class="btn btn-outline-secondary btn-sm" id="btn-next" onclick="goToNextPage()">
+                    Next <i class="bi bi-chevron-right"></i>
+                </button>
             </div>
         </div>
 
