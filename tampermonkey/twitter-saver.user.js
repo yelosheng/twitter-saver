@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitter/X Saver Save Button
 // @namespace    https://github.com/yelosheng/twitter-saver
-// @version      2.1
+// @version      2.2
 // @description  在 Twitter/X 推文下添加保存按钮，一键归档到本地服务
 // @author       yelosheng
 // @match        https://twitter.com/*
@@ -79,6 +79,7 @@
 
     function createSaveButton(tweetElement) {
         const saveButton = document.createElement('div');
+        saveButton.style.cssText = 'display: flex; align-items: center; align-self: center;';
 
         saveButton.innerHTML = `
             <div style="display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 8px; border-radius: 50%; transition: all 0.2s; width: 35px; height: 35px; margin: 0 4px;"
