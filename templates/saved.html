@@ -330,9 +330,10 @@
     function setViewMode(mode) {
         viewMode = mode;
         localStorage.setItem('savedViewMode', mode);
-        applyViewMode();
         currentPage = 1;
         hasMoreData = true;
+        totalPages = 1;
+        applyViewMode();
         loadSaved(1, currentSearchQuery, false);
     }
 
@@ -382,6 +383,7 @@
     function reloadSaved() {
         currentPage = 1;
         hasMoreData = true;
+        totalPages = 1;
         loadSaved(1, currentSearchQuery, false);
     }
 
@@ -450,6 +452,9 @@
                         `;
                     }
                     showElement(noSaved);
+                    if (viewMode === 'paginated') {
+                        hideElement(document.getElementById('pagination-controls'));
+                    }
                     return;
                 }
 
