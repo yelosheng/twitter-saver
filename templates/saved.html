@@ -16,6 +16,12 @@
                 <i class="bi bi-file-earmark-text"></i>
             </button>
         </div>
+        <select id="per-page-select" class="form-select form-select-sm" style="width:80px;"
+                onchange="setPerPage(parseInt(this.value))" title="Items per page">
+            {% for n in range(3, 100, 3) %}
+            <option value="{{ n }}">{{ n }}</option>
+            {% endfor %}
+        </select>
         <button class="btn btn-outline-primary btn-sm" onclick="reloadSaved()">
             <i class="bi bi-arrow-clockwise"></i> Refresh
         </button>
@@ -323,7 +329,10 @@
 {% block scripts %}
 <script>
     let currentPage = 1;
-    const perPage = 12;
+    let perPage = (() => {
+        const v = parseInt(localStorage.getItem('savedPerPage') || '12', 10);
+        return (v >= 3 && v <= 99 && v % 3 === 0) ? v : 12;
+    })();
     let currentSearchQuery = '';
     let isLoading = false;
     let hasMoreData = true;
@@ -339,6 +348,18 @@
     // Helper: hide element
     function hideElement(element) {
         element.classList.add('hidden');
+    }
+
+    // --- Per-page setting ---
+
+    function setPerPage(n) {
+        if (n < 3 || n > 99 || n % 3 !== 0) return;
+        perPage = n;
+        localStorage.setItem('savedPerPage', n);
+        currentPage = 1;
+        hasMoreData = true;
+        totalPages = 1;
+        loadSaved(1, currentSearchQuery, false);
     }
 
     // --- View mode ---
@@ -788,6 +809,9 @@
 
     // Also check scroll position when window is resized
     window.addEventListener('resize', throttledScrollCheck);
+
+    // Sync per-page select to saved preference
+    document.getElementById('per-page-select').value = perPage;
 
     // Apply saved view mode preference and initial load
     applyViewMode();
