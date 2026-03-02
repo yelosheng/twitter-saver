@@ -79,6 +79,24 @@ def main():
         print(f"Failed to start background processing: {e}")
         sys.exit(1)
     
+    # Start Telegram bot if configured
+    print("Starting Telegram bot...")
+    try:
+        import configparser as cp
+        _cfg = cp.ConfigParser()
+        if os.path.exists('config.ini'):
+            _cfg.read('config.ini')
+        _tg_token = _cfg.get('telegram', 'bot_token', fallback='').strip()
+        if _tg_token:
+            from services.telegram_bot import start_bot
+            from app import _telegram_submit
+            start_bot(_tg_token, _telegram_submit)
+            print("Telegram bot started")
+        else:
+            print("Telegram bot not configured (add bot_token to config.ini [telegram])")
+    except Exception as e:
+        print(f"Telegram bot startup failed (non-fatal): {e}")
+
     # Load pending tasks
     print("Loading pending tasks...")
     try:
