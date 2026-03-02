@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}查看推文 - {{ tweet.author_username }}{% endblock %}
+{% block title %}View Tweet - Twitter Saver{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-lg-8 col-xl-6">
-            <!-- 推文卡片 -->
+            <!-- Tweet card -->
             <div class="tweet-card">
-                <!-- 推文头部 -->
+                <!-- Tweet header -->
                 <div class="tweet-header">
                     <div class="d-flex align-items-center">
                         <div class="avatar">
@@ -20,35 +20,35 @@
                         </div>
                         <div class="ms-auto">
                             <a href="{{ tweet.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-box-arrow-up-right"></i> 查看原推文
+                                <i class="bi bi-box-arrow-up-right"></i> View Original
                             </a>
                         </div>
                     </div>
                 </div>
 
-                <!-- 推文内容 -->
+                <!-- Tweet content -->
                 <div class="tweet-content">
                     <div class="tweet-text">
-                        <!-- 这里显示推文文本，暂时用占位符 -->
-                        <p>推文内容 (推文ID: {{ tweet.id }})</p>
+                        <!-- Tweet text display placeholder -->
+                        <p>Tweet content (Tweet ID: {{ tweet.id }})</p>
                         {% if tweet.is_thread %}
-                            <p><span class="badge bg-primary">推文串 ({{ tweet.tweet_count }} 条)</span></p>
+                            <p><span class="badge bg-primary">Thread ({{ tweet.tweet_count }} tweets)</span></p>
                         {% endif %}
                     </div>
 
-                    <!-- 媒体文件直接嵌入 -->
+                    <!-- Media files embedded directly -->
                     {% if tweet.media_files %}
                         <div class="tweet-media">
                             {% for media in tweet.media_files %}
                                 {% if media.type == 'image' %}
                                     <div class="media-item">
-                                        <img src="{{ media.path }}" alt="推文图片" class="tweet-image">
+                                        <img src="{{ media.path }}" alt="Tweet image" class="tweet-image">
                                     </div>
                                 {% elif media.type == 'video' %}
                                     <div class="media-item">
                                         <video controls class="tweet-video">
                                             <source src="{{ media.path }}" type="video/mp4">
-                                            您的浏览器不支持视频播放。
+                                            Your browser does not support video playback.
                                         </video>
                                     </div>
                                 {% endif %}
@@ -57,12 +57,12 @@
                     {% endif %}
                 </div>
 
-                <!-- 推文信息 -->
+                <!-- Tweet info -->
                 <div class="tweet-info">
                     <div class="text-muted small">
-                        <span>保存时间: {{ tweet.processed_at | format_datetime }}</span>
+                        <span>Saved: {{ tweet.processed_at | format_datetime }}</span>
                         {% if tweet.media_count > 0 %}
-                            <span class="ms-3">媒体文件: {{ tweet.media_count }} 个</span>
+                            <span class="ms-3">Media: {{ tweet.media_count }} media files</span>
                         {% endif %}
                     </div>
                 </div>
@@ -74,12 +74,12 @@
 
 {% block scripts %}
 <script>
-// 图片点击放大
+// Enlarge image on click
 document.addEventListener('DOMContentLoaded', function() {
     const images = document.querySelectorAll('.tweet-image');
     images.forEach(img => {
         img.addEventListener('click', function() {
-            // 创建模态框显示大图
+            // Create modal to show full-size image
             const modal = document.createElement('div');
             modal.className = 'image-modal';
             modal.innerHTML = `
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* 推文卡片样式 */
+/* Tweet card styles */
 .tweet-card {
     background: #fff;
     border: 1px solid #e1e8ed;
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-/* 推文头部 */
+/* Tweet header */
 .tweet-header {
     padding: 16px 20px;
     border-bottom: 1px solid #f7f9fa;
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     line-height: 20px;
 }
 
-/* 推文内容 */
+/* Tweet content */
 .tweet-content {
     padding: 0 20px 16px;
 }
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
     word-wrap: break-word;
 }
 
-/* 媒体文件样式 */
+/* Media file styles */
 .tweet-media {
     margin-top: 12px;
 }
@@ -185,14 +185,14 @@ document.addEventListener('DOMContentLoaded', function() {
     background: #000;
 }
 
-/* 推文信息 */
+/* Tweet info */
 .tweet-info {
     padding: 12px 20px;
     border-top: 1px solid #f7f9fa;
     background: #f7f9fa;
 }
 
-/* 图片模态框 */
+/* Image modal */
 .image-modal {
     position: fixed;
     top: 0;
@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
     cursor: default;
 }
 
-/* 响应式设计 */
+/* Responsive design */
 @media (max-width: 768px) {
     .tweet-card {
         margin: 10px;
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
-/* 打印样式 */
+/* Print styles */
 @media print {
     .btn {
         display: none !important;
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     .tweet-video::after {
-        content: "[视频文件]";
+        content: "[video file]";
         display: block;
         padding: 20px;
         text-align: center;

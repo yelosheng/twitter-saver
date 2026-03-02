@@ -112,14 +112,14 @@ def nl2br(text):
 def format_datetime(datetime_str):
     """格式化日期时间"""
     if not datetime_str:
-        return '未知'
+        return 'Unknown'
     try:
         # 尝试解析ISO格式的日期时间
         if 'T' in datetime_str:
             dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
         else:
             dt = datetime.fromisoformat(datetime_str)
-        return dt.strftime('%Y年%m月%d日 %H:%M')
+        return dt.strftime('%Y-%m-%d %H:%M')
     except:
         return datetime_str
 
@@ -802,7 +802,7 @@ def login():
         remember_days = request.form.get('remember_days', '1', type=int)
 
         if not username or not password:
-            return render_template('login.html', error='用户名和密码不能为空')
+            return render_template('login.html', error='Username and password are required')
 
         # 验证用户
         if user_manager.authenticate(username, password):
@@ -820,7 +820,7 @@ def login():
                 return redirect(next_page)
             return redirect(url_for('saved'))
         else:
-            return render_template('login.html', error='用户名或密码错误')
+            return render_template('login.html', error='Invalid username or password')
 
     # GET请求，显示登录表单
     return render_template('login.html')
@@ -850,10 +850,10 @@ def submit_url():
     url = request.form.get('url', '').strip()
     
     if not url:
-        return jsonify({'success': False, 'message': 'URL不能为空'})
+        return jsonify({'success': False, 'message': 'URL is required'})
     
     if not TwitterURLParser.is_valid_twitter_url(url):
-        return jsonify({'success': False, 'message': '无效的Twitter URL'})
+        return jsonify({'success': False, 'message': 'Invalid Twitter URL'})
     
     # 检查是否已经存在相同的URL
     conn = get_db_connection()
@@ -864,7 +864,7 @@ def submit_url():
     
     if existing:
         conn.close()
-        return jsonify({'success': False, 'message': '该URL已经在处理队列中'})
+        return jsonify({'success': False, 'message': 'This URL is already in the queue'})
     
     # 添加到数据库
     cursor = conn.execute(
@@ -879,7 +879,7 @@ def submit_url():
     processing_queue.put((task_id, url))
     info(f"[Submit] Added task {task_id} to queue. Queue size: {processing_queue.qsize()}")
     
-    return jsonify({'success': True, 'message': 'URL已添加到处理队列', 'task_id': task_id})
+    return jsonify({'success': True, 'message': 'URL added to queue', 'task_id': task_id})
 
 @app.route('/api/status')
 def status():
@@ -1123,15 +1123,15 @@ def api_saved():
                             task_dict['preview_text'] = tweet_content
                             
                 except Exception as e:
-                    task_dict['preview_text'] = f'内容读取失败: {str(e)}'
+                    task_dict['preview_text'] = f'Failed to read content: {str(e)}'
             else:
                 # 添加更详细的错误信息
-                task_dict['preview_text'] = f'内容文件不存在: {content_path}'
+                task_dict['preview_text'] = f'Content file not found: {content_path}'
         else:
             task_dict['has_avatar'] = False
             task_dict['avatar_url'] = None
             task_dict['has_media_preview'] = False
-            task_dict['preview_text'] = '保存路径不存在'
+            task_dict['preview_text'] = 'Save path not found'
 
         saved_list.append(task_dict)
 
@@ -1163,7 +1163,7 @@ def show_tweet(slug):
     conn.close()
     
     if not task:
-        return "推文未找到", 404
+        return "Tweet not found", 404
     
     # 获取任务ID用于后续媒体文件访问
     task_id = task['id']
@@ -1285,7 +1285,7 @@ def delete_tweet(task_id):
         
         if not task:
             conn.close()
-            return jsonify({'success': False, 'message': '任务未找到'})
+            return jsonify({'success': False, 'message': 'Task not found'})
         
         # 删除文件夹
         save_path = task['save_path']
@@ -1304,10 +1304,10 @@ def delete_tweet(task_id):
         conn.commit()
         conn.close()
         
-        return jsonify({'success': True, 'message': '任务已被删除'})
+        return jsonify({'success': True, 'message': 'Task deleted'})
         
     except Exception as e:
-        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'})
+        return jsonify({'success': False, 'message': f'Delete failed: {str(e)}'})
 
 @app.route('/debug')
 @login_required
@@ -1519,7 +1519,7 @@ def serve_media_preview(task_id):
     conn.close()
     
     if not task:
-        return "任务未找到", 404
+        return "Task not found", 404
     
     save_path = task['save_path']
     # 使用通用函数标准化路径
@@ -1569,7 +1569,7 @@ def serve_media_preview(task_id):
             first_video = sorted(video_files)[0]
             return send_from_directory(videos_dir, first_video)
     
-    return "无媒体文件", 404
+    return "No media files", 404
 
 @app.route('/media/<int:task_id>/<path:filename>')
 def serve_media(task_id, filename):
@@ -1582,7 +1582,7 @@ def serve_media(task_id, filename):
     conn.close()
     
     if not task:
-        return "任务未找到", 404
+        return "Task not found", 404
     
     save_path = task['save_path']
     # 使用通用函数标准化路径
@@ -1617,7 +1617,7 @@ def serve_media(task_id, filename):
         if os.path.exists(os.path.join(media_dir, filename)):
             return send_from_directory(media_dir, filename)
     
-    return "文件未找到", 404
+    return "File not found", 404
 
 def task_monitor():
     """任务监控器，定期检查卡住的任务"""
@@ -1786,12 +1786,12 @@ def api_retry_tasks():
             
             if task_dict['status'] == 'pending' and next_retry <= now:
                 task_dict['retry_status'] = 'ready'
-                task_dict['retry_status_text'] = '准备重试'
+                task_dict['retry_status_text'] = 'Ready to retry'
             elif task_dict['status'] == 'pending':
                 remaining = next_retry - now
                 minutes = int(remaining.total_seconds() / 60)
                 task_dict['retry_status'] = 'waiting'
-                task_dict['retry_status_text'] = f'{minutes}分钟后重试'
+                task_dict['retry_status_text'] = f'Retry in {minutes}m'
             else:
                 task_dict['retry_status'] = task_dict['status']
                 task_dict['retry_status_text'] = task_dict['status']
@@ -1828,16 +1828,16 @@ def api_retry_now(task_id):
         ).fetchone()
         
         if not task:
-            return jsonify({'success': False, 'message': '任务不存在'})
+            return jsonify({'success': False, 'message': 'Task not found'})
         
         if task['status'] not in ['pending', 'failed']:
-            return jsonify({'success': False, 'message': '任务状态不允许重试'})
+            return jsonify({'success': False, 'message': 'Task status does not allow retry'})
         
         retry_count = task['retry_count'] if task['retry_count'] else 0
         max_retries = task['max_retries'] if task['max_retries'] else 3
         
         if retry_count >= max_retries:
-            return jsonify({'success': False, 'message': '已达到最大重试次数'})
+            return jsonify({'success': False, 'message': 'Maximum retry count reached'})
         
         # 清除重试时间并设置为pending
         cursor.execute("""
@@ -1854,10 +1854,10 @@ def api_retry_now(task_id):
         conn.commit()
         conn.close()
         
-        return jsonify({'success': True, 'message': '任务已添加到重试队列'})
+        return jsonify({'success': True, 'message': 'Task added to retry queue'})
         
     except Exception as e:
-        return jsonify({'success': False, 'message': f'重试失败: {str(e)}'})
+        return jsonify({'success': False, 'message': f'Retry failed: {str(e)}'})
 
 @app.route('/api/reset-retries/<int:task_id>', methods=['POST'])
 def api_reset_retries(task_id):
@@ -1872,7 +1872,7 @@ def api_reset_retries(task_id):
         ).fetchone()
         
         if not task:
-            return jsonify({'success': False, 'message': '任务不存在'})
+            return jsonify({'success': False, 'message': 'Task not found'})
         
         task_url = task['url']
         
@@ -1893,10 +1893,10 @@ def api_reset_retries(task_id):
         processing_queue.put((task_id, task_url))
         info(f"[Reset Retries] Task {task_id} reset and added to queue: {task_url}")
         
-        return jsonify({'success': True, 'message': '重试计数已重置，任务已重新加入队列'})
+        return jsonify({'success': True, 'message': 'Retry count reset, task requeued'})
         
     except Exception as e:
-        return jsonify({'success': False, 'message': f'重置失败: {str(e)}'})
+        return jsonify({'success': False, 'message': f'Reset failed: {str(e)}'})
 
 @app.route('/api/delete-retry-task/<int:task_id>', methods=['POST'])
 def api_delete_retry_task(task_id):
@@ -1911,7 +1911,7 @@ def api_delete_retry_task(task_id):
         ).fetchone()
         
         if not task:
-            return jsonify({'success': False, 'message': '任务不存在'})
+            return jsonify({'success': False, 'message': 'Task not found'})
         
         task_url = task['url']
         task_status = task['status']
@@ -1925,11 +1925,11 @@ def api_delete_retry_task(task_id):
         
         info(f"[Delete Retry Task] Task {task_id} deleted: {task_url} (status: {task_status}, retries: {retry_count})")
         
-        return jsonify({'success': True, 'message': '重试任务已删除'})
+        return jsonify({'success': True, 'message': 'Retry task deleted'})
         
     except Exception as e:
         error(f"[Delete Retry Task] Failed to delete task {task_id}: {str(e)}")
-        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'})
+        return jsonify({'success': False, 'message': f'Delete failed: {str(e)}'})
 
 @app.route('/api/submit', methods=['POST'])
 def api_submit():
@@ -1968,11 +1968,11 @@ def api_submit():
             return jsonify({
                 'success': False,
                 'error': 'URL is required',
-                'message': '请提供Twitter URL',
+                'message': 'Please provide a Twitter URL',
                 'supported_formats': [
                     'JSON: {"url": "https://twitter.com/user/status/123456"}',
                     'Form: url=https://twitter.com/user/status/123456',
-                    'Text: 直接在body中放置URL',
+                    'Text: place URL directly in body',
                     'Query: ?url=https://twitter.com/user/status/123456'
                 ]
             }), 400
@@ -1982,7 +1982,7 @@ def api_submit():
             return jsonify({
                 'success': False,
                 'error': 'Invalid Twitter URL',
-                'message': f'无效的Twitter URL: {url}',
+                'message': f'Invalid Twitter URL: {url}',
                 'url': url
             }), 400
         
@@ -1999,7 +1999,7 @@ def api_submit():
             
             return jsonify({
                 'success': True,
-                'message': f'任务已存在 (状态: {status})',
+                'message': f'Task already exists (status: {status})',
                 'task_id': task_id,
                 'url': url,
                 'status': status,
@@ -2022,7 +2022,7 @@ def api_submit():
         
         return jsonify({
             'success': True,
-            'message': '任务已添加到队列',
+            'message': 'Task added to queue',
             'task_id': task_id,
             'url': url,
             'status': 'pending',
@@ -2033,7 +2033,7 @@ def api_submit():
         return jsonify({
             'success': False,
             'error': 'Internal server error',
-            'message': f'服务器错误: {str(e)}'
+            'message': f'Server error: {str(e)}'
         }), 500
 
 @app.route('/api/status/<int:task_id>')
@@ -2050,7 +2050,7 @@ def api_task_status(task_id):
             return jsonify({
                 'success': False,
                 'error': 'Task not found',
-                'message': '任务不存在'
+                'message': 'Task not found'
             }), 404
         
         task_data = dict(task)
@@ -2075,7 +2075,7 @@ def api_task_status(task_id):
         return jsonify({
             'success': False,
             'error': 'Internal server error',
-            'message': f'服务器错误: {str(e)}'
+            'message': f'Server error: {str(e)}'
         }), 500
 
 @app.route('/api/logs/stream')

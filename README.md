@@ -1,6 +1,6 @@
 # Twitter/X Content Archiver
 
-Archive tweets and media from Twitter/X to local storage using browser automation — no Twitter API key required. Supports text, images, and videos, with both a web interface and a command-line interface.
+A self-hosted tweet saver for your NAS, home server, or Raspberry Pi. Archive tweets and media to local storage with one click — no Twitter API key required.
 
 ![Python](https://img.shields.io/badge/Python-3.7%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![No API Key](https://img.shields.io/badge/Twitter%20API-Not%20Required-brightgreen)
 
@@ -10,6 +10,7 @@ Archive tweets and media from Twitter/X to local storage using browser automatio
 
 ## ✨ Features
 
+- Self-hosted — runs on any Linux box, NAS, or Raspberry Pi
 - No Twitter API key required — uses Playwright browser automation
 - Archives single tweets (thread scraping not yet supported)
 - Automatically downloads images and videos

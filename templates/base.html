@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Twitter内容保存工具{% endblock %}</title>
+    <title>{% block title %}Twitter Saver{% endblock %}</title>
 
     <!-- Favicon - Twitter Bird -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon-128.png') }}">
@@ -64,7 +64,7 @@
             z-index: 1000;
         }
 
-        /* 旋转动画 */
+        /* Spin animation */
         @keyframes spin {
             from {
                 transform: rotate(0deg);
@@ -84,7 +84,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="bi bi-twitter"></i> Twitter保存工具
+                <i class="bi bi-twitter"></i> Twitter Saver
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -93,41 +93,41 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('status_page') }}">
-                            <i class="bi bi-speedometer2"></i> 状态
+                            <i class="bi bi-speedometer2"></i> Status
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('tasks') }}">
-                            <i class="bi bi-list-task"></i> 任务队列
+                            <i class="bi bi-list-task"></i> Queue
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('saved') }}">
-                            <i class="bi bi-archive"></i> 已保存
+                            <i class="bi bi-archive"></i> Saved
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('retries') }}">
-                            <i class="bi bi-arrow-clockwise"></i> 重试管理
+                            <i class="bi bi-arrow-clockwise"></i> Retries
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('debug') }}">
-                            <i class="bi bi-bug"></i> 调试
+                            <i class="bi bi-bug"></i> Debug
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('help_page') }}">
-                            <i class="bi bi-question-circle"></i> 帮助
+                            <i class="bi bi-question-circle"></i> Help
                         </a>
                     </li>
                 </ul>
                 <div id="status-indicator" class="text-light">
                     <small>
                         <i id="queue-icon" class="bi bi-list-task"></i>
-                        <span id="queue-size">队列: 0</span> |
+                        <span id="queue-size">Queue: 0</span> |
                         <i id="processing-icon" class="bi bi-pause-circle"></i>
-                        <span id="processing-status">空闲</span>
+                        <span id="processing-status">Idle</span>
                     </small>
                 </div>
             </div>
@@ -139,31 +139,31 @@
         {% block content %}{% endblock %}
     </div>
 
-    <!-- Toast容器 -->
+    <!-- Toast container -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
         <div id="toast" class="toast" role="alert">
             <div class="toast-header">
-                <strong class="me-auto">通知</strong>
+                <strong class="me-auto">Notifications</strong>
                 <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
             </div>
             <div class="toast-body" id="toast-body">
-                <!-- 消息内容 -->
+                <!-- Message content -->
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 显示Toast消息
+        // Show toast message
         function showToast(message, type = 'info') {
             const toast = document.getElementById('toast');
             const toastBody = document.getElementById('toast-body');
             const toastHeader = toast.querySelector('.toast-header');
 
-            // 设置消息内容
+            // Set message content
             toastBody.textContent = message;
 
-            // 设置样式
+            // Set style
             toast.className = 'toast';
             if (type === 'success') {
                 toast.classList.add('bg-success', 'text-white');
@@ -173,21 +173,21 @@
                 toast.classList.add('bg-warning');
             }
 
-            // 显示Toast
+            // Show toast
             const bsToast = new bootstrap.Toast(toast);
             bsToast.show();
         }
 
-        // 更新状态指示器
+        // Update status indicator
         function updateStatus() {
             fetch('/api/status')
                 .then(response => response.json())
                 .then(data => {
-                    // 更新队列数量
+                    // Update queue count
                     const queueSize = data.queue_size;
-                    document.getElementById('queue-size').textContent = `队列: ${queueSize}`;
+                    document.getElementById('queue-size').textContent = `Queue: ${queueSize}`;
 
-                    // 更新队列图标
+                    // Update queue icon
                     const queueIcon = document.getElementById('queue-icon');
                     if (queueSize > 0) {
                         queueIcon.className = 'bi bi-hourglass-split';
@@ -195,15 +195,15 @@
                         queueIcon.className = 'bi bi-check-circle';
                     }
 
-                    // 更新处理状态文本和图标
+                    // Update processing status text and icon
                     const processingIcon = document.getElementById('processing-icon');
                     if (data.is_processing) {
-                        document.getElementById('processing-status').textContent = '处理中...';
+                        document.getElementById('processing-status').textContent = 'Processing...';
                         processingIcon.className = 'bi bi-arrow-repeat';
-                        // 添加旋转动画
+                        // Add spin animation
                         processingIcon.style.animation = 'spin 1s linear infinite';
                     } else {
-                        document.getElementById('processing-status').textContent = '空闲';
+                        document.getElementById('processing-status').textContent = 'Idle';
                         processingIcon.className = 'bi bi-pause-circle';
                         processingIcon.style.animation = '';
                     }
@@ -211,7 +211,7 @@
                 .catch(error => console.error('Error updating status:', error));
         }
 
-        // 定期更新状态
+        // Periodically update status
         setInterval(updateStatus, 2000);
         updateStatus();
     </script>

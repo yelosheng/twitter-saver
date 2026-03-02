@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}{{ '长文' if tweet.is_article else '推文' }} - {{ tweet.author_username }}{% endblock %}
+{% block title %}{{ 'Article' if tweet.is_article else 'Tweet' }} - Twitter Saver{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
         <div class="{% if tweet.is_article %}col-lg-8{% else %}col-lg-6{% endif %}">
             <div class="tweet-container{% if tweet.is_article %} is-article{% endif %}">
-                <!-- 推文头部 -->
+                <!-- Tweet header -->
                 <div class="tweet-header">
                     <div class="user-avatar">
                         {% if tweet.avatar_file %}
@@ -20,7 +20,7 @@
                         <div class="display-name">
                             {{ tweet.author_name }}
                             {% if tweet.is_article %}
-                            <span class="article-badge"><i class="bi bi-file-text"></i> 长文</span>
+                            <span class="article-badge"><i class="bi bi-file-text"></i> Article</span>
                             {% endif %}
                         </div>
                         <div class="username">@{{ tweet.author_username }}</div>
@@ -37,38 +37,38 @@
                     </div>
                 </div>
 
-                <!-- 推文内容 -->
+                <!-- Tweet content -->
                 <div class="tweet-body">
-                    <!-- Reader模式显示 -->
+                    <!-- Reader mode display -->
                     {% if tweet.html_content %}
                     <div class="tweet-html" id="html-view">
                         <div class="html-content">
                             {{ tweet.html_content | safe }}
                         </div>
                         {% if tweet.is_thread %}
-                        <br><span class="thread-badge">推文串 ({{ tweet.tweet_count }} 条)</span>
+                        <br><span class="thread-badge">Thread ({{ tweet.tweet_count }} tweets)</span>
                         {% endif %}
                     </div>
                     {% else %}
-                    <!-- 文本格式显示（仅在没有HTML内容时使用） -->
+                    <!-- Text format display (used only when no HTML content is available) -->
                     <div class="tweet-text" id="text-view">
                         {{ tweet.text | autolink | nl2br | safe }}
                         {% if tweet.is_thread %}
-                        <br><span class="thread-badge">推文串 ({{ tweet.tweet_count }} 条)</span>
+                        <br><span class="thread-badge">Thread ({{ tweet.tweet_count }} tweets)</span>
                         {% endif %}
                     </div>
                     {% endif %}
 
-                    <!-- 媒体文件（长文不显示，图片已内嵌在正文中） -->
+                    <!-- Media files (not shown for articles — images are embedded in the body) -->
                     {% if tweet.media_files and not tweet.is_article %}
                     <div class="media-container">
                         {% for media in tweet.media_files %}
                         {% if media.type == 'image' %}
-                        <img src="{{ media.url }}" alt="推文图片" class="media-image">
+                        <img src="{{ media.url }}" alt="Tweet image" class="media-image">
                         {% elif media.type == 'video' %}
                         <video controls class="media-video">
                             <source src="{{ media.url }}" type="video/mp4">
-                            您的浏览器不支持视频播放。
+                            Your browser does not support video playback.
                         </video>
                         {% endif %}
                         {% endfor %}
@@ -76,11 +76,11 @@
                     {% endif %}
                 </div>
 
-                <!-- 推文信息 -->
+                <!-- Tweet info -->
                 <div class="tweet-footer">
                     <div class="tweet-time">{{ tweet.processed_at | format_datetime }}</div>
                     {% if tweet.media_count > 0 %}
-                    <div class="media-count">{{ tweet.media_count }} 个媒体文件</div>
+                    <div class="media-count">{{ tweet.media_count }} media files</div>
                     {% endif %}
                 </div>
             </div>
@@ -92,7 +92,7 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // 图片点击放大
+        // Enlarge image on click
         const images = document.querySelectorAll('.media-image');
         images.forEach(img => {
             img.addEventListener('click', function () {
@@ -110,20 +110,20 @@
     });
 
 
-    // 删除推文函数
+    // Delete tweet function
     function deleteTweet() {
-        // 显示确认对话框
+        // Show confirmation dialog
         if (true) {
-            // 使用服务端传入的数字 task_id（URL 可能是 slug，不能直接解析）
+            // Use numeric task_id from server (URL may be a slug and cannot be parsed directly)
             const taskId = {{ task_id }};
 
-        // 显示加载状态
+        // Show loading state
         const deleteBtn = document.querySelector('button[onclick="deleteTweet()"]');
         const originalText = deleteBtn.innerHTML;
-        deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>删除中...';
+        deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
         deleteBtn.disabled = true;
 
-        // 发送删除请求
+        // Send delete request
         fetch(`/delete/${taskId}`, {
             method: 'POST',
             headers: {
@@ -133,28 +133,28 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 删除成功，显示成功消息并跳转
-                    showNotification('推文删除成功', 'success');
+                    // Delete succeeded — show success message and redirect
+                    showNotification('Tweet deleted', 'success');
                     setTimeout(() => {
                         window.location.href = '/saved';
                     }, 1500);
                 } else {
-                    // 删除失败，显示错误消息
-                    showNotification('删除失败: ' + data.message, 'error');
+                    // Delete failed — show error message
+                    showNotification('Delete failed: ' + data.message, 'error');
                     deleteBtn.innerHTML = originalText;
                     deleteBtn.disabled = false;
                 }
             })
             .catch(error => {
-                console.error('删除请求失败:', error);
-                showNotification('删除请求失败，请重试', 'error');
+                console.error('Delete request failed:', error);
+                showNotification('Delete request failed, please try again', 'error');
                 deleteBtn.innerHTML = originalText;
                 deleteBtn.disabled = false;
             });
     }
     }
 
-    // 显示通知消息
+    // Show notification message
     function showNotification(message, type) {
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
@@ -167,12 +167,12 @@
 
         document.body.appendChild(notification);
 
-        // 显示动画
+        // Show animation
         setTimeout(() => {
             notification.classList.add('show');
         }, 100);
 
-        // 自动隐藏
+        // Auto-hide
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => {
@@ -183,7 +183,7 @@
 </script>
 
 <style>
-    /* 推文容器 */
+    /* Tweet container */
     .tweet-container {
         background: white;
         border: 1px solid #e1e8ed;
@@ -193,7 +193,7 @@
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
     }
 
-    /* 推文头部 */
+    /* Tweet header */
     .tweet-header {
         display: flex;
         align-items: center;
@@ -243,7 +243,7 @@
         margin-left: auto;
     }
 
-    /* 推文内容 */
+    /* Tweet content */
     .tweet-body {
         padding: 16px 20px;
     }
@@ -285,7 +285,7 @@
         font-size: 12px;
     }
 
-    /* 长文标识徽章 */
+    /* Article badge */
     .article-badge {
         background: linear-gradient(135deg, #1da1f2, #0d8ecf);
         color: white;
@@ -300,14 +300,14 @@
         gap: 3px;
     }
 
-    /* 长文容器加宽内边距 */
+    /* Wider padding for article containers */
     .tweet-container.is-article .tweet-body {
         padding: 24px 28px;
     }
 
 
 
-    /* HTML内容样式 */
+    /* HTML content styles */
     .tweet-html {
         font-size: 16px;
         line-height: 1.5;
@@ -325,7 +325,7 @@
         box-shadow: none;
     }
 
-    /* 长文专用排版样式 */
+    /* Article-specific typography */
     .is-article .html-content {
         font-size: 17px;
         line-height: 1.75;
@@ -449,14 +449,14 @@
         font-style: italic;
     }
 
-    /* 保持Twitter样式的链接 */
+    /* Preserve Twitter-style links */
     .html-content a[href*="twitter.com"],
     .html-content a[href*="x.com"] {
         color: #1da1f2;
         font-weight: 500;
     }
 
-    /* Hashtags和@mentions样式 */
+    /* Hashtag and @mention styles */
     .html-content a[href*="/hashtag/"],
     .html-content a[href*="/search?q=%23"] {
         color: #1da1f2;
@@ -468,7 +468,7 @@
         font-weight: 500;
     }
 
-    /* 推文串HTML显示样式 */
+    /* Thread HTML display styles */
     .thread-tweet {
         margin-bottom: 16px;
         padding: 12px;
@@ -492,7 +492,7 @@
         margin-bottom: 8px;
     }
 
-    /* 媒体容器 */
+    /* Media container */
     .media-container {
         margin-top: 12px;
     }
@@ -518,7 +518,7 @@
         background: #000;
     }
 
-    /* 推文底部 */
+    /* Tweet footer */
     .tweet-footer {
         padding: 12px 20px;
         border-top: 1px solid #f7f9fa;
@@ -534,7 +534,7 @@
         color: #657786;
     }
 
-    /* 图片覆盖层 */
+    /* Image overlay */
     .image-overlay {
         position: fixed;
         top: 0;
@@ -582,7 +582,7 @@
         border-radius: 50%;
     }
 
-    /* 响应式设计 */
+    /* Responsive design */
     @media (max-width: 768px) {
         .tweet-container {
             margin: 10px;
@@ -605,7 +605,7 @@
         }
     }
 
-    /* 通知消息样式 */
+    /* Notification message styles */
     .notification {
         position: fixed;
         top: 20px;
@@ -645,7 +645,7 @@
         font-size: 16px;
     }
 
-    /* 删除按钮加载状态 */
+    /* Delete button loading state */
     .btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
@@ -656,7 +656,7 @@
         height: 0.875rem;
     }
 
-    /* 打印样式 */
+    /* Print styles */
     @media print {
         .tweet-actions {
             display: none;
@@ -672,7 +672,7 @@
         }
 
         .media-video::after {
-            content: "[视频文件]";
+            content: "[video file]";
             display: block;
             padding: 20px;
             text-align: center;

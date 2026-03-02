@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}系统状态 - Twitter内容保存工具{% endblock %}
+{% block title %}Status - Twitter Saver{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -8,31 +8,31 @@
         <div class="card">
             <div class="card-header">
                 <h4 class="mb-0">
-                    <i class="bi bi-plus-circle"></i> 添加Twitter URL
+                    <i class="bi bi-plus-circle"></i> Add Twitter URL
                 </h4>
             </div>
             <div class="card-body">
                 <form id="url-form">
                     <div class="mb-3">
                         <label for="url" class="form-label">Twitter URL</label>
-                        <input type="url" class="form-control" id="url" name="url" 
+                        <input type="url" class="form-control" id="url" name="url"
                                placeholder="https://twitter.com/username/status/1234567890" required>
                         <div class="form-text">
-                            支持的格式：twitter.com, x.com, mobile.twitter.com, m.twitter.com
+                            Supported: twitter.com, x.com, mobile.twitter.com, m.twitter.com
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary" id="submit-btn">
-                        <i class="bi bi-download"></i> 添加到队列
+                        <i class="bi bi-download"></i> Add to Queue
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- 系统状态卡片 -->
+        <!-- System Status card -->
         <div class="card mt-4">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="bi bi-info-circle"></i> 系统状态
+                    <i class="bi bi-info-circle"></i> System Status
                 </h5>
             </div>
             <div class="card-body">
@@ -41,7 +41,7 @@
                         <div class="card bg-warning text-dark">
                             <div class="card-body text-center">
                                 <h5 class="card-title" id="pending-count">0</h5>
-                                <p class="card-text">等待中</p>
+                                <p class="card-text">Pending</p>
                             </div>
                         </div>
                     </div>
@@ -49,7 +49,7 @@
                         <div class="card bg-info text-white">
                             <div class="card-body text-center">
                                 <h5 class="card-title" id="processing-count">0</h5>
-                                <p class="card-text">处理中</p>
+                                <p class="card-text">Processing</p>
                             </div>
                         </div>
                     </div>
@@ -57,7 +57,7 @@
                         <div class="card bg-success text-white">
                             <div class="card-body text-center">
                                 <h5 class="card-title" id="completed-count">0</h5>
-                                <p class="card-text">已完成</p>
+                                <p class="card-text">Completed</p>
                             </div>
                         </div>
                     </div>
@@ -65,7 +65,7 @@
                         <div class="card bg-danger text-white">
                             <div class="card-body text-center">
                                 <h5 class="card-title" id="failed-count">0</h5>
-                                <p class="card-text">失败</p>
+                                <p class="card-text">Failed</p>
                             </div>
                         </div>
                     </div>
@@ -73,26 +73,26 @@
             </div>
         </div>
 
-        <!-- 使用说明 -->
+        <!-- How to Use -->
         <div class="card mt-4">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="bi bi-question-circle"></i> 使用说明
+                    <i class="bi bi-question-circle"></i> How to Use
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h6>支持的功能：</h6>
+                        <h6>Features:</h6>
                         <ul>
-                            <li>保存单个推文和推文串</li>
-                            <li>自动下载图片和视频</li>
-                            <li>智能队列处理</li>
-                            <li>速率限制自动处理</li>
+                            <li>Archive single tweets and threads</li>
+                            <li>Auto-download images and videos</li>
+                            <li>Smart queue processing</li>
+                            <li>Automatic rate limit handling</li>
                         </ul>
                     </div>
                     <div class="col-md-6">
-                        <h6>支持的URL格式：</h6>
+                        <h6>Supported URL formats:</h6>
                         <ul>
                             <li>https://twitter.com/user/status/123</li>
                             <li>https://x.com/user/status/123</li>
@@ -109,26 +109,26 @@
 
 {% block scripts %}
 <script>
-    // 提交表单
+    // Submit form
     document.getElementById('url-form').addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         const url = document.getElementById('url').value.trim();
         const submitBtn = document.getElementById('submit-btn');
-        
+
         if (!url) {
-            showToast('请输入URL', 'error');
+            showToast('Please enter a URL', 'error');
             return;
         }
-        
-        // 禁用按钮
+
+        // Disable button
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中...';
-        
-        // 提交数据
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+
+        // Submit data
         const formData = new FormData();
         formData.append('url', url);
-        
+
         fetch('/submit', {
             method: 'POST',
             body: formData
@@ -145,16 +145,16 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            showToast('提交失败，请重试', 'error');
+            showToast('Submission failed, please try again', 'error');
         })
         .finally(() => {
-            // 恢复按钮
+            // Restore button
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bi bi-download"></i> 添加到队列';
+            submitBtn.innerHTML = '<i class="bi bi-download"></i> Add to Queue';
         });
     });
-    
-    // 更新状态卡片
+
+    // Update status cards
     function updateStatusCards() {
         fetch('/api/status')
             .then(response => response.json())
@@ -167,8 +167,8 @@
             })
             .catch(error => console.error('Error updating status cards:', error));
     }
-    
-    // 定期更新状态卡片
+
+    // Periodically update status cards
     setInterval(updateStatusCards, 3000);
     updateStatusCards();
 </script>

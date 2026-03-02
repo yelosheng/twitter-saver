@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}任务队列 - Twitter内容保存工具{% endblock %}
+{% block title %}Task Queue - Twitter Saver{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-list-task"></i> 任务队列</h2>
+    <h2><i class="bi bi-list-task"></i> Task Queue</h2>
     <div>
         <select class="form-select" id="status-filter" style="width: auto; display: inline-block;">
-            <option value="">所有状态</option>
-            <option value="pending">等待中</option>
-            <option value="processing">处理中</option>
-            <option value="completed">已完成</option>
-            <option value="failed">失败</option>
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
         </select>
         <button class="btn btn-outline-primary ms-2" onclick="loadTasks()">
-            <i class="bi bi-arrow-clockwise"></i> 刷新
+            <i class="bi bi-arrow-clockwise"></i> Refresh
         </button>
     </div>
 </div>
@@ -23,7 +23,7 @@
     <div class="card-body">
         <div id="loading" class="text-center py-4">
             <div class="spinner-border" role="status">
-                <span class="visually-hidden">加载中...</span>
+                <span class="visually-hidden">Loading tasks...</span>
             </div>
         </div>
 
@@ -34,30 +34,30 @@
                         <tr>
                             <th>ID</th>
                             <th>URL</th>
-                            <th>状态</th>
-                            <th>推文信息</th>
-                            <th>创建时间</th>
-                            <th>处理时间</th>
-                            <th>操作</th>
+                            <th>Status</th>
+                            <th>Tweet Info</th>
+                            <th>Created</th>
+                            <th>Processed</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="tasks-tbody">
-                        <!-- 任务列表将在这里动态加载 -->
+                        <!-- Task list will be loaded here dynamically -->
                     </tbody>
                 </table>
             </div>
 
-            <!-- 分页 -->
-            <nav aria-label="任务分页">
+            <!-- Pagination -->
+            <nav aria-label="Task pagination">
                 <ul class="pagination justify-content-center" id="pagination">
-                    <!-- 分页按钮将在这里动态生成 -->
+                    <!-- Pagination buttons will be generated here dynamically -->
                 </ul>
             </nav>
         </div>
 
         <div id="no-tasks" class="text-center py-4" style="display: none;">
             <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
-            <p class="text-muted mt-2">暂无任务</p>
+            <p class="text-muted mt-2">No tasks</p>
         </div>
     </div>
 </div>
@@ -68,7 +68,7 @@
     let currentPage = 1;
     const perPage = 20;
 
-    // 加载任务列表
+    // Load task list
     function loadTasks(page = 1) {
         const statusFilter = document.getElementById('status-filter').value;
         const loading = document.getElementById('loading');
@@ -106,11 +106,11 @@
             .catch(error => {
                 console.error('Error loading tasks:', error);
                 loading.style.display = 'none';
-                showToast('加载任务失败', 'error');
+                showToast('Failed to load tasks', 'error');
             });
     }
 
-    // 渲染任务列表
+    // Render task list
     function renderTasks(tasks) {
         const tbody = document.getElementById('tasks-tbody');
         tbody.innerHTML = '';
@@ -118,42 +118,42 @@
         tasks.forEach(task => {
             const row = document.createElement('tr');
 
-            // 状态样式
+            // Status style
             const statusClass = `status-${task.status}`;
             const statusText = {
-                'pending': '等待中',
-                'processing': '处理中',
-                'completed': '已完成',
-                'failed': '失败'
+                'pending': 'Pending',
+                'processing': 'Processing',
+                'completed': 'Completed',
+                'failed': 'Failed'
             }[task.status] || task.status;
 
-            // 推文信息
+            // Tweet info
             let tweetInfo = '-';
             if (task.author_username && task.tweet_id) {
                 tweetInfo = `@${task.author_username}`;
                 if (task.is_thread) {
-                    tweetInfo += ` (串推 ${task.tweet_count}条)`;
+                    tweetInfo += ` (Thread ${task.tweet_count})`;
                 }
                 if (task.media_count > 0) {
-                    tweetInfo += ` <i class="bi bi-image" title="${task.media_count}个媒体文件"></i>`;
+                    tweetInfo += ` <i class="bi bi-image" title="${task.media_count} media files"></i>`;
                 }
             }
 
-            // 操作按钮
+            // Action buttons
             let actions = '<div class="btn-group">';
             if (task.status === 'completed') {
-                // 使用 share_slug 如果存在，否则使用 ID（向后兼容）
+                // Use share_slug if available, otherwise use ID (backward compatible)
                 const viewUrl = task.share_slug ? `/view/${task.share_slug}` : `/view/${task.id}`;
                 actions += `<a href="${viewUrl}" class="btn btn-sm btn-outline-primary" target="_blank">
-                    <i class="bi bi-eye"></i> 查看
+                    <i class="bi bi-eye"></i> View
                 </a>`;
             } else if (task.status === 'failed') {
                 actions += `<button class="btn btn-sm btn-outline-warning" onclick="showError(${task.id}, '${task.error_message || ''}')">
-                    <i class="bi bi-exclamation-triangle"></i> 错误
+                    <i class="bi bi-exclamation-triangle"></i> Error
                 </button>`;
             }
 
-            actions += `<button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${task.id}, this)" title="删除任务">
+            actions += `<button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${task.id}, this)" title="Delete task">
                 <i class="bi bi-trash"></i>
             </button></div>`;
 
@@ -175,20 +175,20 @@
         });
     }
 
-    // 渲染分页
+    // Render pagination
     function renderPagination(currentPage, totalPages, totalItems) {
         const pagination = document.getElementById('pagination');
         pagination.innerHTML = '';
 
         if (totalPages <= 1) return;
 
-        // 上一页
+        // Previous page
         const prevLi = document.createElement('li');
         prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `<a class="page-link" href="#" onclick="loadTasks(${currentPage - 1})">上一页</a>`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="loadTasks(${currentPage - 1})">Previous</a>`;
         pagination.appendChild(prevLi);
 
-        // 页码
+        // Page numbers
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, currentPage + 2);
 
@@ -227,21 +227,21 @@
             pagination.appendChild(li);
         }
 
-        // 下一页
+        // Next page
         const nextLi = document.createElement('li');
         nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `<a class="page-link" href="#" onclick="loadTasks(${currentPage + 1})">下一页</a>`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="loadTasks(${currentPage + 1})">Next</a>`;
         pagination.appendChild(nextLi);
     }
 
-    // 显示错误信息
+    // Show error message
     function showError(taskId, errorMessage) {
-        showToast(`任务 ${taskId} 错误: ${errorMessage}`, 'error');
+        showToast(`Task ${taskId} error: ${errorMessage}`, 'error');
     }
 
-    // 删除任务
+    // Delete task
     function deleteTask(taskId, btn) {
-        if (confirm(`确定要删除任务 #${taskId} 吗？`)) {
+        if (confirm(`Delete task #${taskId}?`)) {
             const originalHtml = btn.innerHTML;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
             btn.disabled = true;
@@ -255,32 +255,32 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showToast('任务已删除', 'success');
+                        showToast('Task deleted', 'success');
                         loadTasks(currentPage);
                     } else {
-                        showToast(data.message || '删除失败', 'error');
+                        showToast(data.message || 'Delete failed', 'error');
                         btn.innerHTML = originalHtml;
                         btn.disabled = false;
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showToast('删除请求失败', 'error');
+                    showToast('Delete request failed', 'error');
                     btn.innerHTML = originalHtml;
                     btn.disabled = false;
                 });
         }
     }
 
-    // 状态过滤器变化
+    // Status filter change
     document.getElementById('status-filter').addEventListener('change', function () {
         loadTasks(1);
     });
 
-    // 初始加载
+    // Initial load
     loadTasks();
 
-    // 定期刷新（仅当在第一页且没有状态过滤时）
+    // Periodic refresh (only on page 1 with no status filter)
     setInterval(() => {
         if (currentPage === 1 && !document.getElementById('status-filter').value) {
             loadTasks(1);

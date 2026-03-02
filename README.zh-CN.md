@@ -1,6 +1,6 @@
 # Twitter/X 内容归档工具
 
-通过浏览器自动化技术将 Twitter/X 上的推文和媒体文件保存到本地，无需 Twitter API 密钥。支持文本、图片、视频的完整归档，提供 Web 图形界面与命令行两种使用方式。
+专为 NAS、家庭服务器或树莓派设计的自托管推文保存工具。通过浏览器自动化一键将推文和媒体文件存档到本地——无需 Twitter API 密钥。
 
 ![Python](https://img.shields.io/badge/Python-3.7%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![No API Key](https://img.shields.io/badge/Twitter%20API-不需要-brightgreen)
 
@@ -10,6 +10,7 @@
 
 ## ✨ 功能特性
 
+- 自托管部署，可运行于任意 Linux 设备、NAS 或树莓派
 - 无需 Twitter API 密钥，使用 Playwright 浏览器自动化抓取
 - 支持单条推文归档（推文串抓取功能暂未支持）
 - 自动下载图片和视频

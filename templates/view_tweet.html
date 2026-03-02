@@ -1,27 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}查看推文 - {{ task.author_username }}{% endblock %}
+{% block title %}View Tweet - Twitter Saver{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-lg-10 mx-auto">
-        <!-- 推文头部信息 -->
+        <!-- Tweet header info -->
         <div class="card mb-4 shadow-sm">
             <div class="card-header bg-light">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         {% if task.is_thread %}
-                            <i class="bi bi-collection text-primary"></i> 推文�?
+                            <i class="bi bi-collection text-primary"></i> Thread
                         {% else %}
-                            <i class="bi bi-chat-square-text text-secondary"></i> 单条推文
+                            <i class="bi bi-chat-square-text text-secondary"></i> Tweet
                         {% endif %}
                     </h5>
                     <div>
                         <a href="{{ task.url }}" class="btn btn-outline-primary btn-sm" target="_blank">
-                            <i class="bi bi-box-arrow-up-right"></i> 查看原推�?
+                            <i class="bi bi-box-arrow-up-right"></i> View Original
                         </a>
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-                            <i class="bi bi-printer"></i> 打印
+                            <i class="bi bi-printer"></i> Print
                         </button>
                     </div>
                 </div>
@@ -38,28 +38,28 @@
                                 <small class="text-muted">@{{ task.author_username }}</small>
                             </div>
                         </div>
-                        <p><strong>推文ID:</strong> <code>{{ task.tweet_id }}</code></p>
+                        <p><strong>Tweet ID:</strong> <code>{{ task.tweet_id }}</code></p>
                         {% if task.is_thread %}
-                            <p><strong>推文数量:</strong> <span class="badge bg-primary">{{ task.tweet_count }} �?/span></p>
+                            <p><strong>Tweets:</strong> <span class="badge bg-primary">{{ task.tweet_count }}</span></p>
                         {% endif %}
                     </div>
                     <div class="col-md-6">
-                        <p><strong>保存时间:</strong> {{ task.processed_at | format_datetime }}</p>
+                        <p><strong>Saved:</strong> {{ task.processed_at | format_datetime }}</p>
                         {% if task.media_count > 0 %}
-                            <p><strong>媒体文件:</strong> <span class="badge bg-success">{{ task.media_count }} �?/span></p>
+                            <p><strong>Media:</strong> <span class="badge bg-success">{{ task.media_count }}</span></p>
                         {% endif %}
-                        <p><strong>保存路径:</strong> <small class="text-muted font-monospace">{{ task.save_path }}</small></p>
+                        <p><strong>Path:</strong> <small class="text-muted font-monospace">{{ task.save_path }}</small></p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 推文内容展示 -->
+        <!-- Tweet content display -->
         {% if metadata.tweets %}
             {% for tweet in metadata.tweets %}
             <div class="card mb-4 shadow-sm tweet-card">
                 <div class="card-body">
-                    <!-- 推文头部 -->
+                    <!-- Tweet header -->
                     <div class="d-flex align-items-start mb-3">
                         <div class="avatar-placeholder me-3">
                             <i class="bi bi-person-circle fs-4 text-muted"></i>
@@ -76,12 +76,12 @@
                         </div>
                     </div>
                     
-                    <!-- 推文文本内容 -->
+                    <!-- Tweet text -->
                     <div class="tweet-text mb-3">
                         {{ tweet.text | autolink | nl2br | safe }}
                     </div>
                     
-                    <!-- 推文媒体内容 - 直接显示所有媒体文�?-->
+                    <!-- Tweet media - display all media files directly -->
                     {% if metadata.media_files %}
                         <div class="tweet-media mb-3">
                             {% set media_count = metadata.media_files | length %}
@@ -89,15 +89,15 @@
                                 {% for media in metadata.media_files %}
                                     {% if media.media_type == 'photo' %}
                                         <div class="media-item">
-                                            <img src="/media/{{ task.id }}/{{ media.filename }}" 
-                                                 alt="推文图片" 
+                                            <img src="/media/{{ task.id }}/{{ media.filename }}"
+                                                 alt="Tweet image"
                                                  class="img-fluid rounded tweet-image"
                                                  onclick="openImageModal(this.src, '{{ media.filename }}', '{{ tweet.author_name }}')">
                                             <div class="media-overlay">
-                                                <a href="/media/{{ task.id }}/{{ media.filename }}" 
-                                                   class="btn btn-sm btn-outline-light" 
+                                                <a href="/media/{{ task.id }}/{{ media.filename }}"
+                                                   class="btn btn-sm btn-outline-light"
                                                    download="{{ media.filename }}"
-                                                   title="下载 {{ media.filename }}">
+                                                   title="Download {{ media.filename }}">
                                                     <i class="bi bi-download"></i>
                                                 </a>
                                             </div>
@@ -106,13 +106,13 @@
                                         <div class="media-item">
                                             <video controls class="rounded tweet-video" preload="metadata">
                                                 <source src="/media/{{ task.id }}/{{ media.filename }}" type="video/mp4">
-                                                您的浏览器不支持视频播放�?
+                                                Your browser does not support video playback.
                                             </video>
                                             <div class="media-overlay">
-                                                <a href="/media/{{ task.id }}/{{ media.filename }}" 
-                                                   class="btn btn-sm btn-outline-light" 
+                                                <a href="/media/{{ task.id }}/{{ media.filename }}"
+                                                   class="btn btn-sm btn-outline-light"
                                                    download="{{ media.filename }}"
-                                                   title="下载 {{ media.filename }}">
+                                                   title="Download {{ media.filename }}">
                                                     <i class="bi bi-download"></i>
                                                 </a>
                                             </div>
@@ -122,8 +122,8 @@
                             </div>
                         </div>
                     {% endif %}
-                    
-                    <!-- 推文统计信息 -->
+
+                    <!-- Tweet stats -->
                     <div class="tweet-stats">
                         <div class="d-flex text-muted small">
                             {% if tweet.public_metrics %}
@@ -138,15 +138,15 @@
             </div>
             {% endfor %}
         {% else %}
-            <!-- 如果没有结构化数据，显示原始内容 -->
+            <!-- No structured data — show raw content -->
             <div class="card mb-4 shadow-sm">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-file-text"></i> 推文内容</h6>
+                    <h6 class="mb-0"><i class="bi bi-file-text"></i> Content</h6>
                 </div>
                 <div class="card-body">
                     <div class="tweet-content mb-3">{{ content | autolink | nl2br | safe }}</div>
-                    
-                    <!-- 为没有结构化数据的情况显示媒体文�?-->
+
+                    <!-- Media files for the no-structured-data fallback -->
                     {% if metadata.media_files %}
                         <div class="tweet-media">
                             {% set media_count = metadata.media_files | length %}
@@ -154,15 +154,15 @@
                                 {% for media in metadata.media_files %}
                                     {% if media.media_type == 'photo' %}
                                         <div class="media-item">
-                                            <img src="/media/{{ task.id }}/{{ media.filename }}" 
-                                                 alt="推文图片" 
+                                            <img src="/media/{{ task.id }}/{{ media.filename }}"
+                                                 alt="Tweet image"
                                                  class="img-fluid rounded tweet-image"
                                                  onclick="openImageModal(this.src, '{{ media.filename }}', '{{ task.author_name }}')">
                                             <div class="media-overlay">
-                                                <a href="/media/{{ task.id }}/{{ media.filename }}" 
-                                                   class="btn btn-sm btn-outline-light" 
+                                                <a href="/media/{{ task.id }}/{{ media.filename }}"
+                                                   class="btn btn-sm btn-outline-light"
                                                    download="{{ media.filename }}"
-                                                   title="下载 {{ media.filename }}">
+                                                   title="Download {{ media.filename }}">
                                                     <i class="bi bi-download"></i>
                                                 </a>
                                             </div>
@@ -171,13 +171,13 @@
                                         <div class="media-item">
                                             <video controls class="rounded tweet-video" preload="metadata">
                                                 <source src="/media/{{ task.id }}/{{ media.filename }}" type="video/mp4">
-                                                您的浏览器不支持视频播放�?
+                                                Your browser does not support video playback.
                                             </video>
                                             <div class="media-overlay">
-                                                <a href="/media/{{ task.id }}/{{ media.filename }}" 
-                                                   class="btn btn-sm btn-outline-light" 
+                                                <a href="/media/{{ task.id }}/{{ media.filename }}"
+                                                   class="btn btn-sm btn-outline-light"
                                                    download="{{ media.filename }}"
-                                                   title="下载 {{ media.filename }}">
+                                                   title="Download {{ media.filename }}">
                                                     <i class="bi bi-download"></i>
                                                 </a>
                                             </div>
@@ -191,14 +191,14 @@
             </div>
         {% endif %}
 
-        <!-- 元数�?-->
+        <!-- Metadata -->
         <div class="card shadow-sm">
             <div class="card-header">
                 <h6 class="mb-0">
-                    <i class="bi bi-info-circle"></i> 详细信息
-                    <button type="button" class="btn btn-sm btn-outline-secondary float-end" 
+                    <i class="bi bi-info-circle"></i> Details
+                    <button type="button" class="btn btn-sm btn-outline-secondary float-end"
                             onclick="toggleMetadata()">
-                        <i class="bi bi-code"></i> 显示/隐藏JSON
+                        <i class="bi bi-code"></i> Show/Hide JSON
                     </button>
                 </h6>
             </div>
@@ -206,14 +206,14 @@
                 <div id="metadata-summary">
                     <div class="row">
                         <div class="col-md-6">
-                            <p><strong>保存时间:</strong> {{ metadata.saved_at | format_datetime }}</p>
-                            <p><strong>推文数量:</strong> {{ metadata.tweet_count or 0 }}</p>
-                            <p><strong>是否为推文串:</strong> {{ '�? if metadata.is_thread else '�? }}</p>
+                            <p><strong>Saved:</strong> {{ metadata.saved_at | format_datetime }}</p>
+                            <p><strong>Tweet count:</strong> {{ metadata.tweet_count or 0 }}</p>
+                            <p><strong>Thread:</strong> {{ 'Yes' if metadata.is_thread else 'No' }}</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>媒体文件数量:</strong> {{ metadata.media_files|length if metadata.media_files else 0 }}</p>
+                            <p><strong>Media files:</strong> {{ metadata.media_files|length if metadata.media_files else 0 }}</p>
                             {% if metadata.tweets and metadata.tweets[0] %}
-                                <p><strong>对话ID:</strong> <code>{{ metadata.tweets[0].conversation_id }}</code></p>
+                                <p><strong>Conversation ID:</strong> <code>{{ metadata.tweets[0].conversation_id }}</code></p>
                             {% endif %}
                         </div>
                     </div>
@@ -227,12 +227,12 @@
     </div>
 </div>
 
-<!-- 图片模态框 -->
+<!-- Image modal -->
 <div class="modal fade" id="imageModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="imageModalTitle">图片预览</h5>
+                <h5 class="modal-title" id="imageModalTitle">Image Preview</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
@@ -240,9 +240,9 @@
             </div>
             <div class="modal-footer">
                 <a id="downloadLink" href="" class="btn btn-primary" download="">
-                    <i class="bi bi-download"></i> 下载
+                    <i class="bi bi-download"></i> Download
                 </a>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -251,7 +251,7 @@
 
 {% block scripts %}
 <script>
-    // 切换元数据显�?
+    // Toggle metadata display
     function toggleMetadata() {
         const summary = document.getElementById('metadata-summary');
         const json = document.getElementById('metadata-json');
@@ -265,63 +265,63 @@
         }
     }
     
-    // 打开图片模态框
+    // Open image modal
     function openImageModal(src, filename, author) {
         const modal = new bootstrap.Modal(document.getElementById('imageModal'));
         document.getElementById('modalImage').src = src;
-        document.getElementById('imageModalTitle').textContent = `${author || '推文'} - ${filename}`;
+        document.getElementById('imageModalTitle').textContent = `${author || 'Tweet'} - ${filename}`;
         document.getElementById('downloadLink').href = src;
         document.getElementById('downloadLink').download = filename;
         modal.show();
     }
     
-    // 图片懒加载和错误处理
+    // Image lazy loading and error handling
     document.addEventListener('DOMContentLoaded', function() {
-        // 处理图片加载错误
+        // Handle image load errors
         const images = document.querySelectorAll('.tweet-image');
         images.forEach(img => {
             img.addEventListener('error', function() {
                 this.style.display = 'none';
                 const placeholder = document.createElement('div');
                 placeholder.className = 'alert alert-warning text-center';
-                placeholder.innerHTML = '<i class="bi bi-image"></i> 图片加载失败';
+                placeholder.innerHTML = '<i class="bi bi-image"></i> Image failed to load';
                 this.parentNode.appendChild(placeholder);
             });
-            
-            // 添加加载动画
+
+            // Add loading animation
             img.addEventListener('load', function() {
                 this.style.opacity = '1';
             });
         });
-        
-        // 处理视频加载错误
+
+        // Handle video load errors
         const videos = document.querySelectorAll('.tweet-video');
         videos.forEach(video => {
             video.addEventListener('error', function() {
                 const placeholder = document.createElement('div');
                 placeholder.className = 'alert alert-warning text-center';
-                placeholder.innerHTML = '<i class="bi bi-play-circle"></i> 视频加载失败';
+                placeholder.innerHTML = '<i class="bi bi-play-circle"></i> Video failed to load';
                 this.parentNode.appendChild(placeholder);
                 this.style.display = 'none';
             });
         });
-        
-        // 添加推文卡片悬停效果
+
+        // Add tweet card hover effect
         const tweetCards = document.querySelectorAll('.tweet-card');
         tweetCards.forEach(card => {
             card.addEventListener('mouseenter', function() {
                 this.style.transform = 'translateY(-2px)';
                 this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.12)';
             });
-            
+
             card.addEventListener('mouseleave', function() {
                 this.style.transform = 'translateY(0)';
                 this.style.boxShadow = '';
             });
         });
-        
+
         {% if not metadata %}
-        // 如果没有元数据，隐藏相关部分
+        // Hide metadata section if no metadata present
         const metadataCard = document.querySelector('.card:last-child');
         if (metadataCard) {
             metadataCard.style.display = 'none';
@@ -329,16 +329,16 @@
         {% endif %}
     });
     
-    // 复制推文链接
+    // Copy tweet link
     function copyTweetLink() {
         const url = window.location.href;
         navigator.clipboard.writeText(url).then(() => {
-            // 显示复制成功提示
+            // Show copy success notification
             const toast = document.createElement('div');
             toast.className = 'toast-notification';
-            toast.textContent = '链接已复制到剪贴�?;
+            toast.textContent = 'Link copied to clipboard';
             document.body.appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.remove();
             }, 3000);
@@ -347,7 +347,7 @@
 </script>
 
 <style>
-    /* 推文卡片样式 */
+    /* Tweet card styles */
     .tweet-card {
         border: 1px solid #e1e8ed;
         transition: all 0.2s ease-in-out;
@@ -358,7 +358,7 @@
         border-color: #1da1f2;
     }
     
-    /* 推文文本样式 */
+    /* Tweet text styles */
     .tweet-text {
         font-size: 1.1rem;
         line-height: 1.6;
@@ -375,7 +375,7 @@
         text-decoration: underline;
     }
     
-    /* 媒体网格布局 */
+    /* Media grid layout */
     .media-grid-single {
         display: grid;
         grid-template-columns: 1fr;
@@ -400,7 +400,7 @@
         overflow: hidden;
     }
     
-    /* 媒体覆盖层样�?*/
+    /* Media overlay styles */
     .media-overlay {
         position: absolute;
         top: 0;
@@ -419,7 +419,7 @@
         opacity: 1;
     }
     
-    /* 推文图片样式 */
+    /* Tweet image styles */
     .tweet-image {
         cursor: pointer;
         transition: all 0.3s ease;
@@ -436,7 +436,7 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
-    /* 推文视频样式 */
+    /* Tweet video styles */
     .tweet-video {
         max-height: 400px;
         border-radius: 12px;
@@ -447,7 +447,7 @@
         width: auto;
     }
     
-    /* 头像占位�?*/
+    /* Avatar placeholder */
     .avatar-placeholder {
         width: 48px;
         height: 48px;
@@ -458,7 +458,7 @@
         border-radius: 50%;
     }
     
-    /* 推文统计样式 */
+    /* Tweet stats styles */
     .tweet-stats {
         border-top: 1px solid #e1e8ed;
         padding-top: 12px;
@@ -471,13 +471,13 @@
         gap: 4px;
     }
     
-    /* 徽章样式增强 */
+    /* Badge style enhancements */
     .badge {
         font-size: 0.75rem;
         padding: 0.35em 0.65em;
     }
     
-    /* 代码块样�?*/
+    /* Code block styles */
     code {
         background: #f8f9fa;
         padding: 2px 6px;
@@ -485,12 +485,12 @@
         font-size: 0.9em;
     }
     
-    /* 卡片阴影增强 */
+    /* Card shadow enhancement */
     .shadow-sm {
         box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important;
     }
     
-    /* 响应式调�?*/
+    /* Responsive adjustments */
     @media (max-width: 768px) {
         .tweet-text {
             font-size: 1rem;
@@ -511,7 +511,7 @@
         }
     }
     
-    /* 打印样式 */
+    /* Print styles */
     @media print {
         .btn, .modal, nav, .card-header .btn {
             display: none !important;
@@ -537,7 +537,7 @@
         }
     }
     
-    /* 通知样式 */
+    /* Notification styles */
     .toast-notification {
         position: fixed;
         top: 20px;
@@ -561,6 +561,6 @@
         }
     }
     
-    /* 移除加载动画，避免影响媒体显�?*/
+    /* Remove load animation to avoid interfering with media display */
 </style>
 {% endblock %}
