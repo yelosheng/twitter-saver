@@ -312,6 +312,8 @@
     let isLoading = false;
     let hasMoreData = true;
     let isInitialLoad = true;
+    let totalPages = 1;
+    let viewMode = localStorage.getItem('savedViewMode') || 'infinite';
 
     // Helper: show element
     function showElement(element) {
@@ -322,6 +324,68 @@
     function hideElement(element) {
         element.classList.add('hidden');
     }
+
+    // --- View mode ---
+
+    function setViewMode(mode) {
+        viewMode = mode;
+        localStorage.setItem('savedViewMode', mode);
+        applyViewMode();
+        currentPage = 1;
+        hasMoreData = true;
+        loadSaved(1, currentSearchQuery, false);
+    }
+
+    function applyViewMode() {
+        const btnInfinite = document.getElementById('btn-infinite');
+        const btnPaginated = document.getElementById('btn-paginated');
+        const paginationControls = document.getElementById('pagination-controls');
+        const noMoreData = document.getElementById('no-more-data');
+
+        if (viewMode === 'infinite') {
+            btnInfinite.classList.add('active');
+            btnPaginated.classList.remove('active');
+            hideElement(paginationControls);
+            window.addEventListener('scroll', throttledScrollCheck);
+        } else {
+            btnPaginated.classList.add('active');
+            btnInfinite.classList.remove('active');
+            showElement(paginationControls);
+            hideElement(noMoreData);
+            window.removeEventListener('scroll', throttledScrollCheck);
+        }
+    }
+
+    function updatePaginationControls() {
+        if (viewMode !== 'paginated') return;
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+        document.getElementById('page-info').textContent = totalPages > 0
+            ? `Page ${currentPage} / ${totalPages}`
+            : 'No results';
+    }
+
+    function goToPrevPage() {
+        if (currentPage > 1) {
+            loadSaved(currentPage - 1, currentSearchQuery, false);
+            window.scrollTo(0, 0);
+        }
+    }
+
+    function goToNextPage() {
+        if (currentPage < totalPages) {
+            loadSaved(currentPage + 1, currentSearchQuery, false);
+            window.scrollTo(0, 0);
+        }
+    }
+
+    function reloadSaved() {
+        currentPage = 1;
+        hasMoreData = true;
+        loadSaved(1, currentSearchQuery, false);
+    }
+
+    // --- End view mode ---
 
     // Load saved tweets list
     function loadSaved(page = 1, searchQuery = '', append = false) {
@@ -400,15 +464,20 @@
                 }
 
                 currentPage = page;
+                totalPages = Math.ceil((data.total || 0) / perPage) || 1;
 
-                // Check if there is more data
-                if (data.saved.length < perPage) {
-                    hasMoreData = false;
-                    if (!isInitialLoad) {
-                        showElement(noMoreData);
-                    }
+                if (viewMode === 'paginated') {
+                    updatePaginationControls();
                 } else {
-                    hasMoreData = true;
+                    // Infinite scroll: check if there is more data
+                    if (data.saved.length < perPage) {
+                        hasMoreData = false;
+                        if (!isInitialLoad) {
+                            showElement(noMoreData);
+                        }
+                    } else {
+                        hasMoreData = true;
+                    }
                 }
 
                 isInitialLoad = false;
@@ -691,12 +760,12 @@
 
     // Initialize scroll event listener
     const throttledScrollCheck = throttle(checkScrollPosition, 200);
-    window.addEventListener('scroll', throttledScrollCheck);
 
     // Also check scroll position when window is resized
     window.addEventListener('resize', throttledScrollCheck);
 
-    // Initial load
+    // Apply saved view mode preference and initial load
+    applyViewMode();
     loadSaved();
 </script>
 {% endblock %}
