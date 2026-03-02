@@ -89,7 +89,7 @@ The script file is at `tampermonkey/twitter-saver.user.js`.
 
 The most convenient way to save tweets on a phone or tablet. Share any tweet directly to your private Telegram bot using the native Twitter/X share sheet — no URL copying, no app switching.
 
-![Telegram bot saving a tweet](telegram_bot.png)
+<img src="telegram_bot.png" alt="Telegram bot saving a tweet" width="50%">
 
 **Setup:**
 1. Open [@BotFather](https://t.me/BotFather) on Telegram, send `/newbot`, follow the prompts, and copy the bot token

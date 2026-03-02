@@ -89,7 +89,7 @@ python run_web.py
 
 手机或平板上最便捷的保存方式。通过 Twitter/X 原生分享功能，直接将推文分享给你的私人 Telegram 机器人，无需复制链接，无需切换 App。
 
-![Telegram 机器人保存推文](telegram_bot.png)
+<img src="telegram_bot.png" alt="Telegram 机器人保存推文" width="50%">
 
 **配置步骤：**
 1. 在 Telegram 中打开 [@BotFather](https://t.me/BotFather)，发送 `/newbot`，按提示操作，复制机器人 Token
