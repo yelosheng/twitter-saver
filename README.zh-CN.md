@@ -99,6 +99,7 @@ python run_web.py
 | `/retries` | 查看失败任务并手动重试 |
 | `/view/<slug>` | 通过分享链接查看归档内容 |
 | `/debug` | 系统状态和卡死任务重置 |
+| `/help` | 油猴脚本安装说明 |
 
 ### 命令行
 
@@ -152,6 +153,22 @@ saved_tweets/
 2. **规则匹配** — 无需 API 密钥，基于内置关键词规则自动生成基础标签。
 
 通过 Web 界面的 `/tags` 页面可管理所有标签，也可在 `/saved` 页面对单条内容手动触发标签生成。
+
+---
+
+## 🖱️ 浏览器脚本（油猴）
+
+安装油猴脚本后，可在 Twitter/X 每条推文下直接点击保存按钮一键归档，无需离开页面或手动复制链接。
+
+**安装步骤：**
+1. 安装 [Tampermonkey](https://www.tampermonkey.net/) 浏览器扩展
+2. 启动 Web 界面：`python run_web.py`
+3. 访问 `http://localhost:6201/help`，点击安装链接
+
+**配置后端地址：**
+点击 Tampermonkey 扩展图标 → 找到脚本 → 点击 **⚙️ 设置后端地址**，输入你的服务地址（默认为 `http://localhost:6201`）。
+
+脚本文件位于 `tampermonkey/twitter-archiver.user.js`。
 
 ---
 

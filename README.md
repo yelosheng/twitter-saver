@@ -99,6 +99,7 @@ Visit `http://localhost:6201` after starting.
 | `/retries` | View failed tasks and retry manually |
 | `/view/<slug>` | View archived content via share link |
 | `/debug` | System status and stuck task reset |
+| `/help` | Tampermonkey script installation guide |
 
 ### CLI
 
@@ -151,6 +152,22 @@ Automatically generates semantic tags after each successful archive to aid categ
 2. **Rule-based** — no API key required; uses built-in keyword rules for basic tagging.
 
 Manage tags on the `/tags` page, or trigger generation for individual items on the `/saved` page.
+
+---
+
+## 🖱️ Browser Extension (Tampermonkey)
+
+A Tampermonkey userscript adds a save button directly to each tweet on Twitter/X, letting you archive with one click without leaving the page.
+
+**Install:**
+1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension
+2. Start the web UI (`python run_web.py`)
+3. Visit `http://localhost:6201/help` and click the install link
+
+**Configure backend URL:**
+Click the Tampermonkey icon → find the script → click **⚙️ 设置后端地址** to set your server address (default: `http://localhost:6201`).
+
+The script is located at `tampermonkey/twitter-archiver.user.js`.
 
 ---
 
