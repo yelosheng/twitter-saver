@@ -2,7 +2,7 @@
   <img src="telegram_avatar.png" alt="Twitter Saver" width="120">
 </div>
 
-# Twitter/X Content Archiver
+# Twitter/X Content Saver
 
 A self-hosted tweet saver for your NAS, home server, or Raspberry Pi. Archive tweets and media to local storage with one click — no Twitter API key required.
 
