@@ -1280,6 +1280,20 @@ def show_tweet(slug):
     except (IndexError, KeyError):
         pass
 
+    # 兜底检测：DB 中 content_type 可能因以下原因误判为 'tweet'：
+    # 1. 通过 /status/ URL 提交的长文（动态检测路径，URL 不含 /article/）
+    # 2. 迁移前保存的旧记录（content_type 列为 NULL）
+    # 如果 content.html 使用了长文专用模板（标题为 '长文'），则视为长文
+    is_article = content_type == 'article'
+    if not is_article:
+        # 读取 content.html 完整内容，检查是否使用了长文专属模板标题
+        try:
+            with open(content_html_file, 'r', encoding='utf-8') as _f:
+                if '<title>长文</title>' in _f.read():
+                    is_article = True
+        except Exception:
+            pass
+
     tweet_data = {
         'id': task['tweet_id'],
         'author_name': task['author_name'],
@@ -1294,7 +1308,7 @@ def show_tweet(slug):
         'text': tweet_text,
         'html_content': tweet_html,
         'content_type': content_type,
-        'is_article': content_type == 'article'
+        'is_article': is_article
     }
 
     return render_template('tweet_display.html', tweet=tweet_data, task_id=task_id)
