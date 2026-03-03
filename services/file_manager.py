@@ -109,40 +109,8 @@ class FileManager:
             with open(content_file, 'w', encoding='utf-8') as f:
                 f.write(tweet.text)
             
-            # Save Markdown content if HTML is available
+            # Save Reader-mode HTML if HTML content is available
             if tweet.html_content:
-                # Convert HTML to Markdown
-                markdown_content = convert_html_to_markdown(tweet.html_content)
-                
-                # Save Markdown file
-                markdown_file = os.path.join(save_dir, "content.md")
-                with open(markdown_file, 'w', encoding='utf-8') as f:
-                    # Create a complete Markdown document with metadata
-                    markdown_template = """# Tweet by {author_name} (@{author_username})
-
-**Tweet ID:** {tweet_id}  
-**Published:** {created_at}  
-**Original URL:** [https://twitter.com/{author_username}/status/{tweet_id}](https://twitter.com/{author_username}/status/{tweet_id})
-
----
-
-{markdown_content}
-
----
-
-*Saved by Twitter Content Saver*
-"""
-                    
-                    formatted_markdown = markdown_template.format(
-                        author_name=tweet.author_name or 'Unknown',
-                        author_username=tweet.author_username or 'unknown',
-                        markdown_content=markdown_content,
-                        tweet_id=tweet.id,
-                        created_at=tweet.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                    )
-                    f.write(formatted_markdown)
-                
-                # Save Reader模式的HTML版本
                 html_file = os.path.join(save_dir, "content.html")
                 with open(html_file, 'w', encoding='utf-8') as f:
 
@@ -388,46 +356,10 @@ class FileManager:
                         f.write("\n\n")  # Separate tweets with double newlines
                     f.write(tweet.text)
             
-            # Save Markdown content if any tweets have HTML content
+            # Save Reader-mode HTML if any tweets have HTML content
             has_html = any(tweet.html_content for tweet in tweets)
             if has_html:
                 first_tweet = tweets[0]
-                
-                # Save Markdown version
-                markdown_file = os.path.join(save_dir, "content.md")
-                with open(markdown_file, 'w', encoding='utf-8') as f:
-                    # Create a complete Markdown document for thread
-                    markdown_header = f"""# Tweet Thread by {first_tweet.author_name or 'Unknown'} (@{first_tweet.author_username or 'unknown'})
-
-**Thread with {len(tweets)} tweets**  
-**Author:** {first_tweet.author_name or 'Unknown'} (@{first_tweet.author_username or 'unknown'})  
-**Conversation ID:** {first_tweet.conversation_id}
-
----
-
-"""
-                    f.write(markdown_header)
-                    
-                    # Write each tweet in Markdown
-                    for i, tweet in enumerate(tweets, 1):
-                        markdown_content = convert_html_to_markdown(tweet.html_content) if tweet.html_content else tweet.text
-                        
-                        tweet_markdown = f"""## Tweet {i}/{len(tweets)}
-
-**Tweet ID:** {tweet.id}  
-**Published:** {tweet.created_at.strftime('%Y-%m-%d %H:%M:%S')}  
-**URL:** [https://twitter.com/{tweet.author_username or 'unknown'}/status/{tweet.id}](https://twitter.com/{tweet.author_username or 'unknown'}/status/{tweet.id})
-
-{markdown_content}
-
----
-
-"""
-                        f.write(tweet_markdown)
-                    
-                    f.write("*Saved by Twitter Content Saver*\n")
-                
-                # Also save a clean HTML version
                 html_file = os.path.join(save_dir, "content.html")
                 with open(html_file, 'w', encoding='utf-8') as f:
                     # Create a clean HTML document for thread
