@@ -122,10 +122,13 @@ class TwitterHTMLToMarkdown:
         # 转换为Markdown
         return self.convert(content)
     
-    def extract_readable_content(self, html_content: str) -> str:
+    def extract_readable_content(self, html_content: str, preserve_linebreaks: bool = False) -> str:
         """
         提取可读内容 - Reader模式
         类似Readability/Pocket，只保留核心内容和基本格式
+
+        preserve_linebreaks: 为 True 时保留所有原始换行（单条推文用），
+                             为 False 时启用智能合并（长文/文章用）
         """
         if not html_content:
             return ""
@@ -181,6 +184,9 @@ class TwitterHTMLToMarkdown:
         content = re.sub(r'<img[^>]*alt="([^"]*)"[^>]*/?>', r'\1', content)
         
         # 第四步：移除所有HTML标签和Twitter特有的CSS类
+        # 先把换行类标签转为 \n，再统一清除其余标签（否则 <br> 会被替换成空格丢失换行）
+        content = re.sub(r'<br\s*/?>', '\n', content, flags=re.IGNORECASE)
+        content = re.sub(r'</?p[^>]*>', '\n', content, flags=re.IGNORECASE)
         content = re.sub(r'<[^>]+>', ' ', content)
         
         # 第五步：清理空白字符 - 保留段落结构
@@ -199,85 +205,91 @@ class TwitterHTMLToMarkdown:
         content = content.strip()
         
         # 第六步：格式美化 - 智能段落合并和格式化
+        # preserve_linebreaks=True 时（单条推文）跳过合并，直接保留每行
         lines = content.split('\n')
         formatted_lines = []
-        
-        i = 0
-        while i < len(lines):
-            line = lines[i].strip()
-            if not line:
-                i += 1
-                continue
-                
-            # 检测是否为标题行（加粗内容且相对独立）
-            if '**' in line and line.count('**') >= 2:
-                # 如果前面有内容，添加段落分隔
-                if formatted_lines and formatted_lines[-1]:
-                    formatted_lines.append('')  # 空行作为段落分隔
-                formatted_lines.append(line)
-                formatted_lines.append('')  # 标题后也添加空行
-                i += 1
-            # 检测列表项
-            elif line.startswith(('1. ', '2. ', '3. ', '4. ', '5. ')) or line.startswith('·'):
-                formatted_lines.append(line)
-                i += 1
-            # 普通内容 - 智能合并短句和连接词
-            else:
-                # 如果当前行是短连接词，向前合并到前一个段落
-                if len(line) <= 3 and line in ['和', '但', '或', '且', '以及', '但是', '并且', '而且'] and formatted_lines:
-                    # 将连接词合并到前一个段落
-                    formatted_lines[-1] = formatted_lines[-1] + ' ' + line
-                    
-                    # 查看下一行，如果是相关内容也一起合并
-                    j = i + 1
-                    while j < len(lines):
-                        next_line = lines[j].strip()
-                        if not next_line:
-                            j += 1
-                            continue
-                        
-                        # 如果下一行是标题，也合并进来（因为连接词通常连接相关内容）
-                        if ('**' in next_line and next_line.count('**') >= 2):
-                            formatted_lines[-1] = formatted_lines[-1] + ' ' + next_line
-                            j += 1
-                            break
-                        # 如果是普通内容且比较短，也合并
-                        elif len(next_line) < 50:
-                            formatted_lines[-1] = formatted_lines[-1] + ' ' + next_line
-                            j += 1
-                            break
-                        else:
-                            break
-                    
-                    i = j
+
+        if preserve_linebreaks:
+            # 单条推文：原样保留每行，不做智能合并
+            for line in lines:
+                formatted_lines.append(line.strip())
+        else:
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                if not line:
+                    i += 1
+                    continue
+
+                # 检测是否为标题行（加粗内容且相对独立）
+                if '**' in line and line.count('**') >= 2:
+                    # 如果前面有内容，添加段落分隔
+                    if formatted_lines and formatted_lines[-1]:
+                        formatted_lines.append('')  # 空行作为段落分隔
+                    formatted_lines.append(line)
+                    formatted_lines.append('')  # 标题后也添加空行
+                    i += 1
+                # 检测列表项
+                elif line.startswith(('1. ', '2. ', '3. ', '4. ', '5. ')) or line.startswith('·'):
+                    formatted_lines.append(line)
+                    i += 1
+                # 普通内容 - 智能合并短句和连接词
                 else:
-                    # 收集连续的短内容行，合并成一个段落
-                    paragraph_parts = [line]
-                    j = i + 1
-                    
-                    # 向前看，合并短句
-                    while j < len(lines):
-                        next_line = lines[j].strip()
-                        if not next_line:
-                            j += 1
-                            continue
-                        
-                        # 如果下一行是标题或列表，停止合并
-                        if ('**' in next_line and next_line.count('**') >= 2) or \
-                           next_line.startswith(('1. ', '2. ', '3. ', '4. ', '5. ', '·')):
-                            break
-                        
-                        # 只合并非常短的句子片段
-                        if len(next_line) < 10 and not next_line.endswith(('。', '！', '？', '：')):
-                            paragraph_parts.append(next_line)
-                            j += 1
-                        else:
-                            break
-                    
-                    # 将收集的部分合并成一个段落
-                    merged_paragraph = ' '.join(paragraph_parts)
-                    formatted_lines.append(merged_paragraph)
-                    i = j
+                    # 如果当前行是短连接词，向前合并到前一个段落
+                    if len(line) <= 3 and line in ['和', '但', '或', '且', '以及', '但是', '并且', '而且'] and formatted_lines:
+                        # 将连接词合并到前一个段落
+                        formatted_lines[-1] = formatted_lines[-1] + ' ' + line
+
+                        # 查看下一行，如果是相关内容也一起合并
+                        j = i + 1
+                        while j < len(lines):
+                            next_line = lines[j].strip()
+                            if not next_line:
+                                j += 1
+                                continue
+
+                            # 如果下一行是标题，也合并进来（因为连接词通常连接相关内容）
+                            if ('**' in next_line and next_line.count('**') >= 2):
+                                formatted_lines[-1] = formatted_lines[-1] + ' ' + next_line
+                                j += 1
+                                break
+                            # 如果是普通内容且比较短，也合并
+                            elif len(next_line) < 50:
+                                formatted_lines[-1] = formatted_lines[-1] + ' ' + next_line
+                                j += 1
+                                break
+                            else:
+                                break
+
+                        i = j
+                    else:
+                        # 收集连续的短内容行，合并成一个段落
+                        paragraph_parts = [line]
+                        j = i + 1
+
+                        # 向前看，合并短句
+                        while j < len(lines):
+                            next_line = lines[j].strip()
+                            if not next_line:
+                                j += 1
+                                continue
+
+                            # 如果下一行是标题或列表，停止合并
+                            if ('**' in next_line and next_line.count('**') >= 2) or \
+                               next_line.startswith(('1. ', '2. ', '3. ', '4. ', '5. ', '·')):
+                                break
+
+                            # 只合并非常短的句子片段
+                            if len(next_line) < 10 and not next_line.endswith(('。', '！', '？', '：')):
+                                paragraph_parts.append(next_line)
+                                j += 1
+                            else:
+                                break
+
+                        # 将收集的部分合并成一个段落
+                        merged_paragraph = ' '.join(paragraph_parts)
+                        formatted_lines.append(merged_paragraph)
+                        i = j
         
         result = '\n'.join(formatted_lines)
         result = re.sub(r'\n{3,}', '\n\n', result)  # 最多保留两个换行
@@ -299,19 +311,20 @@ def convert_html_to_markdown(html_content: str) -> str:
     return converter.convert_twitter_content(html_content)
 
 
-def extract_readable_content(html_content: str) -> str:
+def extract_readable_content(html_content: str, preserve_linebreaks: bool = False) -> str:
     """
     提取可读内容 - Reader模式（便捷函数）
     类似Readability/Pocket，专注内容，去掉UI噪音
-    
+
     Args:
         html_content: 原始HTML内容
-        
+        preserve_linebreaks: 为 True 时保留原始换行（单条推文用）
+
     Returns:
         Reader模式的纯净内容
     """
     converter = TwitterHTMLToMarkdown()
-    return converter.extract_readable_content(html_content)
+    return converter.extract_readable_content(html_content, preserve_linebreaks=preserve_linebreaks)
 
 
 if __name__ == "__main__":

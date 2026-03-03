@@ -93,15 +93,68 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         function openOverlay(src) {
+            let scale = 1;
             const overlay = document.createElement('div');
             overlay.className = 'image-overlay';
             overlay.innerHTML = `
                 <div class="overlay-content">
                     <img src="${src}" class="overlay-image">
-                    <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+                    <button class="close-btn">×</button>
+                    <div class="zoom-hint">滚轮缩放</div>
                 </div>
             `;
             document.body.appendChild(overlay);
+
+            const img = overlay.querySelector('.overlay-image');
+            const closeBtn = overlay.querySelector('.close-btn');
+
+            closeBtn.addEventListener('click', () => overlay.remove());
+
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) overlay.remove();
+            });
+
+            overlay.addEventListener('wheel', function (e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.15 : 0.15;
+                scale = Math.min(Math.max(scale + delta, 0.1), 10);
+                img.style.transform = `scale(${scale})`;
+            }, { passive: false });
+
+            function onKeyDown(e) {
+                if (e.key === 'Escape') {
+                    overlay.remove();
+                    document.removeEventListener('keydown', onKeyDown);
+                }
+            }
+            document.addEventListener('keydown', onKeyDown);
+            overlay.addEventListener('remove', () => document.removeEventListener('keydown', onKeyDown));
+        }
+
+        function openVideoOverlay(src) {
+            const overlay = document.createElement('div');
+            overlay.className = 'image-overlay';
+            overlay.innerHTML = `
+                <div class="overlay-content">
+                    <video src="${src}" class="overlay-video" controls autoplay></video>
+                    <button class="close-btn">×</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            const closeBtn = overlay.querySelector('.close-btn');
+            closeBtn.addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) overlay.remove();
+            });
+
+            function onKeyDown(e) {
+                if (e.key === 'Escape') {
+                    overlay.remove();
+                    document.removeEventListener('keydown', onKeyDown);
+                }
+            }
+            document.addEventListener('keydown', onKeyDown);
         }
 
         // Enlarge image on click — media section images
@@ -111,12 +164,28 @@
             });
         });
 
+        // Enlarge video on double-click — media section videos (single click = play/pause)
+        document.querySelectorAll('.media-video').forEach(video => {
+            video.addEventListener('dblclick', function (e) {
+                e.preventDefault();
+                openVideoOverlay(this.querySelector('source')?.src || this.src);
+            });
+        });
+
         // Enlarge image on click — images embedded in article HTML content
         document.querySelectorAll('.html-content img').forEach(img => {
             img.style.cursor = 'pointer';
             img.addEventListener('click', function (e) {
                 e.preventDefault(); // 阻止父级 <a> 链接跳转
                 openOverlay(this.src);
+            });
+        });
+
+        // Enlarge video on double-click — videos embedded in article HTML content
+        document.querySelectorAll('.html-content video').forEach(video => {
+            video.addEventListener('dblclick', function (e) {
+                e.preventDefault();
+                openVideoOverlay(this.querySelector('source')?.src || this.src);
             });
         });
     });
@@ -562,24 +631,44 @@
 
     .overlay-content {
         position: relative;
-        max-width: 90%;
-        max-height: 90%;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
     }
 
     .overlay-image {
-        max-width: 100%;
-        max-height: 100%;
-        border-radius: 8px;
+        max-width: 90vw;
+        max-height: 90vh;
+        width: 90vw;
+        height: 90vh;
+        object-fit: contain;
+        border-radius: 4px;
+        transform-origin: center center;
+        transition: transform 0.08s ease-out;
+        user-select: none;
+    }
+
+    .overlay-video {
+        max-width: 90vw;
+        max-height: 90vh;
+        width: 90vw;
+        height: 90vh;
+        object-fit: contain;
+        border-radius: 4px;
+        background: #000;
     }
 
     .close-btn {
-        position: absolute;
-        top: -40px;
-        right: 0;
-        background: none;
-        border: none;
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         color: white;
-        font-size: 30px;
+        font-size: 24px;
         cursor: pointer;
         padding: 0;
         width: 40px;
@@ -587,11 +676,29 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        border-radius: 50%;
+        z-index: 10000;
+        line-height: 1;
     }
 
     .close-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .zoom-hint {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 13px;
+        pointer-events: none;
+        animation: fadeOutHint 2s ease-out 1.5s forwards;
+    }
+
+    @keyframes fadeOutHint {
+        from { opacity: 1; }
+        to { opacity: 0; }
     }
 
     /* Responsive design */

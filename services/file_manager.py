@@ -262,9 +262,9 @@ class FileManager:
                         f.write(article_html_template.format(raw_html=clean_html))
 
                     else:
-                        # 普通推文：沿用原来的 Reader 模式处理
+                        # 普通推文：保留原始换行，不做智能合并
 
-                        reader_content = extract_readable_content(tweet.html_content)
+                        reader_content = extract_readable_content(tweet.html_content, preserve_linebreaks=True)
 
                         html_template = """<!DOCTYPE html>
 <html lang="zh-CN">
