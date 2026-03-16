@@ -600,15 +600,13 @@
             const col = document.createElement('div');
             col.className = 'col-md-6 col-lg-4 mb-4';
 
-            // Tweet type indicator
-            const typeIcon = item.is_thread ?
-                '<i class="bi bi-collection text-primary" title="Thread"></i>' :
-                '<i class="bi bi-chat-square-text text-secondary" title="Tweet"></i>';
-
-            // Media file indicator
-            let mediaIcons = '';
-            if (item.media_count > 0) {
-                mediaIcons = `<i class="bi bi-image text-success" title="${item.media_count} media files"></i>`;
+            // Platform source badge
+            let sourceBadge = '';
+            if (item.content_type === 'xhs') {
+                sourceBadge = `<img src="/static/xhs.ico" title="XiaoHongShu" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;">`;
+            } else {
+                const label = item.is_thread ? 'Thread' : 'Tweet';
+                sourceBadge = `<svg title="${label}" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1d9bf0" style="flex-shrink:0;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`;
             }
 
             col.innerHTML = `
@@ -628,8 +626,7 @@
                                 </div>
                             </div>
                             <div>
-                                ${typeIcon}
-                                ${mediaIcons}
+                                ${sourceBadge}
                             </div>
                         </div>
 

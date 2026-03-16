@@ -78,9 +78,18 @@ _TWEET_URL_RE = re.compile(
     r'https?://(?:www\.|mobile\.|m\.)?(?:twitter\.com|x\.com)/\w+/status/\d+'
 )
 
+_XHS_URL_RE = re.compile(
+    r'https?://(?:xhslink\.com|(?:www\.)?xiaohongshu\.com/explore/[a-f0-9]+)[^\s]*'
+)
+
 
 def _extract_twitter_url(text: str) -> Optional[str]:
     m = _TWEET_URL_RE.search(text)
+    return m.group(0) if m else None
+
+
+def _extract_xhs_url(text: str) -> Optional[str]:
+    m = _XHS_URL_RE.search(text)
     return m.group(0) if m else None
 
 
@@ -125,10 +134,35 @@ def _make_handlers(submit_callback: Callable):
             return
 
         text = (update.message.text or update.message.caption or '').strip()
+
+        # XiaoHongShu URL
+        xhs_url = _extract_xhs_url(text)
+        if xhs_url:
+            await update.message.reply_text("⏳ Saving XiaoHongShu post...")
+            try:
+                from services.xhs_service import XHSService, XHSServiceError
+                from app import register_xhs_task
+                xhs = XHSService()
+                xhs_url = XHSService.resolve_xhslink(xhs_url)
+                xhs_url = XHSService.normalize_xhs_url(xhs_url)
+                result = xhs.save_post(xhs_url)
+                task_id, slug = register_xhs_task(xhs_url, result)
+                post_type = '🎬 Video' if result['type'] == 'video' else '🖼️ Images'
+                await update.message.reply_text(
+                    f"✅ Saved: {result['title']}\n"
+                    f"{post_type} · {result.get('image_count', 0)} files\n"
+                    f"📁 {result['save_path']}\n"
+                    f"🔗 /view/{slug}"
+                )
+            except Exception as e:
+                await update.message.reply_text(f"❌ XHS save failed: {e}")
+            return
+
+        # Twitter/X URL
         url = _extract_twitter_url(text)
         if not url:
             await update.message.reply_text(
-                "❌ No Twitter/X URL found. Send a tweet link directly."
+                "❌ No Twitter/X or XiaoHongShu URL found."
             )
             return
 

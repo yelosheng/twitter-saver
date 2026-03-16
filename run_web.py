@@ -9,7 +9,7 @@ import webbrowser
 import time
 import threading
 import logging
-from app import app, init_db, init_services, start_background_thread, load_pending_tasks
+from app import app, init_db, init_services, start_background_thread, load_pending_tasks, start_xhs_autosave, get_setting
 
 
 def open_browser():
@@ -96,6 +96,16 @@ def main():
             print("Telegram bot not configured (add bot_token to config.ini [telegram])")
     except Exception as e:
         print(f"Telegram bot startup failed (non-fatal): {e}")
+
+    # Start XHS auto-save if enabled
+    try:
+        if get_setting('xhs_autosave_enabled', 'false') == 'true':
+            start_xhs_autosave()
+            print("XHS auto-save started")
+        else:
+            print("XHS auto-save not enabled (configure at /xhs)")
+    except Exception as e:
+        print(f"XHS auto-save startup failed (non-fatal): {e}")
 
     # Load pending tasks
     print("Loading pending tasks...")

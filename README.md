@@ -2,9 +2,9 @@
   <img src="telegram_avatar.png" alt="Twitter Saver" width="120">
 </div>
 
-# Twitter/X Content Saver
+# Twitter/X & XiaoHongShu Content Saver
 
-A self-hosted tweet saver for your NAS, home server, or Raspberry Pi. Archive tweets and media to local storage with one click — no Twitter API key required.
+A self-hosted content saver for your NAS, home server, or Raspberry Pi. Archive tweets and XiaoHongShu (小红书) posts — including images and videos — to local storage with one click.
 
 ![Python](https://img.shields.io/badge/Python-3.7%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![No API Key](https://img.shields.io/badge/Twitter%20API-Not%20Required-brightgreen)
 
@@ -16,16 +16,17 @@ A self-hosted tweet saver for your NAS, home server, or Raspberry Pi. Archive tw
 
 - Self-hosted — runs on any Linux box, NAS, or Raspberry Pi
 - No Twitter API key required — uses Playwright browser automation
-- Archives single tweets (thread scraping not yet supported)
-- Automatically downloads images and videos
+- **XiaoHongShu (小红书) support** — save image posts and videos via Telegram bot or REST API
+- Archives single tweets and XHS posts; downloads all images and videos automatically
 - Saves content in multiple formats: plain text, Markdown, Reader-mode HTML
-- Saves complete metadata (author, timestamp, etc.) as JSON
+- Saves complete metadata (author, timestamp, stats) as JSON
 - Built-in task queue with automatic retry on failure (exponential backoff)
 - Web UI with real-time log streaming, task monitoring, and content browsing
-- Saved tweets page supports infinite scroll and pagination (toggle per preference)
-- Each archived tweet gets a unique public share link
+- Saved page shows a platform badge (X or 小红书) on each card
+- Supports infinite scroll and pagination (toggle per preference)
+- Each archived post gets a unique public share link (`/view/<slug>`)
 - Change password via the in-app user menu
-- Optional: Telegram bot — save tweets by sending links to your private bot
+- Optional: Telegram bot — save Twitter/X or XiaoHongShu posts by forwarding links
 - Optional: AI-powered tag generation via Gemini API
 - Optional: video thumbnails via FFmpeg
 
@@ -124,7 +125,96 @@ The most convenient way to save tweets on a phone or tablet. Share any tweet dir
 
 **Bot commands:**
 - Any message containing a Twitter/X URL → queued for archiving
+- Any message containing a XiaoHongShu URL → saved immediately (see XHS section below)
 - `/status` — shows current queue size
+
+---
+
+## 📕 XiaoHongShu (小红书) Integration
+
+XHS support is powered by [agent-reach](https://github.com/Panniantong/agent-reach) and its `xiaohongshu-mcp` Docker container. Once configured, you can save any XHS post by forwarding the link to the Telegram bot or calling the REST API.
+
+### Prerequisites
+
+- Docker
+- Node.js (for `mcporter` and `yt-dlp` via npm)
+
+### Setup
+
+**1. Install agent-reach**
+
+```bash
+npm install -g agent-reach
+agent-reach install
+```
+
+**2. Start the XiaoHongShu MCP server**
+
+```bash
+# Pull and start the container (cookies volume-mounted for persistence)
+mkdir -p ~/.agent-reach/xhs
+docker run -d --name xiaohongshu-mcp \
+  -p 18060:18060 \
+  -v ~/.agent-reach/xhs/cookies.json:/app/cookies.json \
+  xpzouying/xiaohongshu-mcp
+```
+
+**3. Configure cookies (login required)**
+
+Log in to xiaohongshu.com in your browser, export cookies using [Cookie-Editor](https://cookie-editor.cgagnier.ca/) (JSON format), then:
+
+```bash
+agent-reach configure xhs-cookies
+# Paste the JSON cookie string when prompted
+# Then copy it into the container's expected path:
+docker exec xiaohongshu-mcp cp /cookies.json /app/cookies.json
+```
+
+**4. Register the server globally**
+
+Add to `~/.mcporter/mcporter.json`:
+
+```json
+{
+  "mcpServers": {
+    "xiaohongshu": { "baseUrl": "http://localhost:18060/mcp" }
+  }
+}
+```
+
+**5. Verify**
+
+```bash
+mcporter call 'xiaohongshu.search_feeds(keyword: "test")'
+```
+
+### Saving XHS Posts
+
+**Via Telegram bot** — forward or paste any `xiaohongshu.com/explore/...?xsec_token=...` URL. The bot replies with the title, type, file count, and a `/view/<slug>` link.
+
+**Via REST API:**
+
+```bash
+curl -X POST http://localhost:6201/api/submit/xhs \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.xiaohongshu.com/explore/<id>?xsec_token=<token>"}'
+```
+
+### XHS Output Structure
+
+```
+saved_xhs/
+└── 2024-01-15_Post-Title_feedid/
+    ├── content.txt        # Plain text description
+    ├── content.md         # Markdown with author info and stats
+    ├── metadata.json      # Full API response (no comments)
+    ├── avatar.jpg         # Author profile picture
+    ├── images/            # Image posts: 01.webp, 02.webp, …
+    ├── videos/            # Video posts: <title>.mp4
+    └── thumbnails/        # Video cover image
+```
+
+> **Note:** Cookies expire periodically. Re-run the configure step and restart the container when XHS calls start failing.
 
 ---
 
@@ -164,15 +254,16 @@ Visit `http://localhost:6201` after starting.
 
 | Route | Purpose |
 |---|---|
-| `/` | Submit a Twitter URL to start archiving |
+| `/` | Submit a Twitter/X URL to start archiving |
 | `/tasks` | View task queue status |
-| `/saved` | Browse and search archived tweets |
+| `/saved` | Browse and search all archived posts (Twitter + XHS) |
 | `/tags` | Manage AI-generated tags |
 | `/retries` | View failed tasks and retry manually |
-| `/view/<slug>` | View archived content via share link |
+| `/view/<slug>` | View any archived post via share link |
 | `/debug` | System status and stuck task reset |
 | `/telegram` | Telegram bot configuration |
 | `/help` | Tampermonkey script installation guide |
+| `POST /api/submit/xhs` | Submit a XiaoHongShu URL for archiving (JSON body: `{"url": "..."}`) |
 
 ### CLI
 

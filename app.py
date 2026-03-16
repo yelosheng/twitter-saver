@@ -24,6 +24,7 @@ from services.twitter_service import TwitterService, TwitterScrapingError
 from services.media_downloader import MediaDownloader
 from services.file_manager import FileManager
 from services.user_manager import UserManager
+from services.xhs_service import XHSService, XHSServiceError
 from utils.url_parser import TwitterURLParser
 
 app = Flask(__name__)
@@ -446,7 +447,26 @@ def init_db():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_next_retry_time ON tasks(next_retry_time)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_retry_count ON tasks(retry_count)')
     cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_share_slug ON tasks(share_slug)')
-    
+
+    # App settings table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+    # Default XHS auto-save settings
+    cursor.executemany(
+        'INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)',
+        [
+            ('xhs_autosave_enabled', 'false'),
+            ('xhs_autosave_interval_minutes', '30'),
+            ('xhs_autosave_last_run', ''),
+            ('xhs_autosave_last_count', '0'),
+            ('xhs_user_id', ''),
+        ]
+    )
+
     conn.commit()
     conn.close()
 
@@ -1217,7 +1237,7 @@ def show_tweet(slug):
     # 扫描images目录
     images_dir = os.path.join(actual_save_path, 'images')
     if os.path.exists(images_dir):
-        for filename in os.listdir(images_dir):
+        for filename in sorted(os.listdir(images_dir)):
             if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
                 media_files.append({
                     'filename': filename,
@@ -1576,7 +1596,7 @@ def serve_media_preview(task_id):
     if os.path.exists(thumbnails_dir):
         thumbnail_files = []
         for filename in os.listdir(thumbnails_dir):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 thumbnail_files.append(filename)
         
         if thumbnail_files:
@@ -1640,24 +1660,25 @@ def serve_media(task_id, filename):
     
     # 处理子目录中的文件
     if '/' in filename:
-        parts = filename.split('/')
+        parts = filename.split('/', 1)
         if len(parts) == 2:
             subdir, actual_filename = parts
             if subdir in ['images', 'videos', 'thumbnails']:
-                actual_filename = secure_filename(actual_filename)
-                media_dir = os.path.join(actual_save_path, subdir)
-                if os.path.exists(os.path.join(media_dir, actual_filename)):
-                    return send_from_directory(media_dir, actual_filename)
-    
-    # 安全检查文件名（用于向后兼容）
-    filename = secure_filename(filename)
-    
-    # 检查文件是否在images、videos或thumbnails目录中
-    for subdir in ['images', 'videos', 'thumbnails']:
-        media_dir = os.path.join(actual_save_path, subdir)
-        if os.path.exists(os.path.join(media_dir, filename)):
-            return send_from_directory(media_dir, filename)
-    
+                # Security: reject path traversal; preserve unicode filenames
+                if '..' not in actual_filename and not actual_filename.startswith('/'):
+                    media_dir = os.path.join(actual_save_path, subdir)
+                    full_path = os.path.join(media_dir, actual_filename)
+                    if os.path.exists(full_path):
+                        return send_from_directory(media_dir, actual_filename)
+
+    # 安全检查文件名（用于向后兼容，仅 ASCII 文件名）
+    safe_name = secure_filename(filename)
+    if safe_name:
+        for subdir in ['images', 'videos', 'thumbnails']:
+            media_dir = os.path.join(actual_save_path, subdir)
+            if os.path.exists(os.path.join(media_dir, safe_name)):
+                return send_from_directory(media_dir, safe_name)
+
     return "File not found", 404
 
 def task_monitor():
@@ -2076,6 +2097,244 @@ def api_submit():
             'error': 'Internal server error',
             'message': f'Server error: {str(e)}'
         }), 500
+
+def register_xhs_task(url: str, result: dict) -> tuple[int, str]:
+    """Insert a completed XHS save as a task in the DB.
+
+    Returns (task_id, share_slug).
+    """
+    conn = get_db_connection()
+    slug = generate_unique_slug()
+    now = format_time_for_db(get_current_time())
+    conn.execute(
+        '''INSERT INTO tasks
+               (url, status, processed_at, tweet_id, author_username, author_name,
+                save_path, tweet_text, content_type, share_slug,
+                is_thread, tweet_count, media_count)
+           VALUES (?, 'completed', ?, ?, ?, ?, ?, ?, 'xhs', ?, 0, 1, ?)''',
+        (url, now,
+         result['feed_id'],
+         result.get('author_username', ''),
+         result.get('author_name', ''),
+         result['save_path'],
+         result.get('tweet_text', ''),
+         slug,
+         result.get('media_count', result.get('image_count', 0)))
+    )
+    conn.commit()
+    task_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    conn.close()
+    return task_id, slug
+
+
+# ---------------------------------------------------------------------------
+# App settings helpers
+# ---------------------------------------------------------------------------
+
+def get_setting(key: str, default: str = '') -> str:
+    conn = get_db_connection()
+    row = conn.execute('SELECT value FROM app_settings WHERE key = ?', (key,)).fetchone()
+    conn.close()
+    return row['value'] if row else default
+
+
+def set_setting(key: str, value: str):
+    conn = get_db_connection()
+    conn.execute('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', (key, value))
+    conn.commit()
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# XHS auto-save background job
+# ---------------------------------------------------------------------------
+
+_xhs_autosave_thread: threading.Thread = None
+_xhs_autosave_stop = threading.Event()
+
+
+def _xhs_autosave_worker():
+    """Background thread: periodically fetch home feed and save new posts."""
+    info('[XHS AutoSave] Worker started')
+    while not _xhs_autosave_stop.is_set():
+        try:
+            interval = int(get_setting('xhs_autosave_interval_minutes', '30'))
+        except ValueError:
+            interval = 30
+
+        # Wait for the configured interval (check stop every 10s)
+        for _ in range(interval * 6):
+            if _xhs_autosave_stop.is_set():
+                return
+            time.sleep(10)
+
+        if _xhs_autosave_stop.is_set():
+            return
+
+        if get_setting('xhs_autosave_enabled', 'false') != 'true':
+            continue
+
+        _run_xhs_autosave()
+
+    info('[XHS AutoSave] Worker stopped')
+
+
+def _run_xhs_autosave():
+    """Fetch 我的收藏, save posts not already in the DB."""
+    info('[XHS AutoSave] Running...')
+    saved_count = 0
+    try:
+        user_id = get_setting('xhs_user_id', '').strip()
+        xhs = XHSService()
+        feeds = xhs.get_favorites(user_id=user_id or None)
+
+        conn = get_db_connection()
+        existing_ids = {
+            row[0] for row in
+            conn.execute("SELECT tweet_id FROM tasks WHERE content_type='xhs'").fetchall()
+        }
+        conn.close()
+
+        for feed in feeds:
+            feed_id = feed['feed_id']
+            if feed_id in existing_ids:
+                continue
+            try:
+                result = xhs.save_post(feed['url'])
+                register_xhs_task(feed['url'], result)
+                existing_ids.add(feed_id)
+                saved_count += 1
+                info(f'[XHS AutoSave] Saved: {result["title"]}')
+            except Exception as e:
+                warning(f'[XHS AutoSave] Failed {feed_id}: {e}')
+
+    except Exception as e:
+        error(f'[XHS AutoSave] Error: {e}')
+
+    now = format_time_for_db(get_current_time())
+    set_setting('xhs_autosave_last_run', now)
+    set_setting('xhs_autosave_last_count', str(saved_count))
+    info(f'[XHS AutoSave] Done — saved {saved_count} new posts')
+
+
+def start_xhs_autosave():
+    global _xhs_autosave_thread, _xhs_autosave_stop
+    _xhs_autosave_stop.clear()
+    _xhs_autosave_thread = threading.Thread(
+        target=_xhs_autosave_worker, daemon=True, name='xhs-autosave'
+    )
+    _xhs_autosave_thread.start()
+
+
+def stop_xhs_autosave():
+    _xhs_autosave_stop.set()
+
+
+# ---------------------------------------------------------------------------
+# XHS settings routes
+# ---------------------------------------------------------------------------
+
+@app.route('/xhs')
+@login_required
+def xhs_settings():
+    return render_template('xhs_settings.html')
+
+
+@app.route('/api/xhs/settings', methods=['GET'])
+@login_required
+def api_xhs_settings_get():
+    return jsonify({
+        'enabled': get_setting('xhs_autosave_enabled', 'false') == 'true',
+        'interval_minutes': int(get_setting('xhs_autosave_interval_minutes', '30')),
+        'user_id': get_setting('xhs_user_id', ''),
+        'last_run': get_setting('xhs_autosave_last_run', ''),
+        'last_count': int(get_setting('xhs_autosave_last_count', '0')),
+        'thread_alive': _xhs_autosave_thread is not None and _xhs_autosave_thread.is_alive(),
+    })
+
+
+@app.route('/api/xhs/settings', methods=['POST'])
+@login_required
+def api_xhs_settings_post():
+    data = request.get_json() or {}
+    if 'enabled' in data:
+        enabled = bool(data['enabled'])
+        set_setting('xhs_autosave_enabled', 'true' if enabled else 'false')
+        if enabled:
+            start_xhs_autosave()
+        else:
+            stop_xhs_autosave()
+    if 'interval_minutes' in data:
+        try:
+            mins = max(5, int(data['interval_minutes']))
+        except (ValueError, TypeError):
+            mins = 30
+        set_setting('xhs_autosave_interval_minutes', str(mins))
+    if 'user_id' in data:
+        set_setting('xhs_user_id', str(data['user_id']).strip())
+    return jsonify({'success': True})
+
+
+@app.route('/api/xhs/run-now', methods=['POST'])
+@login_required
+def api_xhs_run_now():
+    """Trigger an immediate auto-save run in a background thread."""
+    t = threading.Thread(target=_run_xhs_autosave, daemon=True, name='xhs-autosave-manual')
+    t.start()
+    return jsonify({'success': True, 'message': 'Auto-save run started'})
+
+
+@app.route('/api/submit/xhs', methods=['POST'])
+def api_submit_xhs():
+    """Submit a XiaoHongShu post URL for download.
+
+    Request body (JSON): {"url": "https://www.xiaohongshu.com/explore/...?xsec_token=..."}
+    """
+    try:
+        url = None
+        if request.is_json:
+            data = request.get_json()
+            url = data.get('url') if data else None
+        if not url and request.form:
+            url = request.form.get('url')
+        if not url and request.data:
+            url = request.data.decode('utf-8').strip()
+        if not url:
+            url = request.args.get('url')
+
+        if not url:
+            return jsonify({'success': False, 'error': 'URL is required'}), 400
+
+        # Support mobile app share text (e.g. "caption http://xhslink.com/xxx 复制后打开...")
+        url = XHSService.extract_url_from_share_text(url)
+        url = XHSService.resolve_xhslink(url)
+        url = XHSService.normalize_xhs_url(url)
+
+        if not XHSService.is_valid_xhs_url(url):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid XiaoHongShu URL',
+                'message': 'Expected: https://www.xiaohongshu.com/explore/<id>?xsec_token=...',
+                'url': url
+            }), 400
+
+        xhs = XHSService()
+        result = xhs.save_post(url)
+        task_id, slug = register_xhs_task(url, result)
+
+        return jsonify({
+            'success': True,
+            'message': 'XHS post saved',
+            'task_id': task_id,
+            'share_slug': slug,
+            **result
+        }), 201
+
+    except XHSServiceError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'Internal server error', 'message': str(e)}), 500
+
 
 @app.route('/api/status/<int:task_id>')
 def api_task_status(task_id):
