@@ -2,9 +2,9 @@
   <img src="telegram_avatar.png" alt="Twitter Saver" width="120">
 </div>
 
-# Twitter/X 内容归档工具
+# Twitter/X & 小红书内容归档工具
 
-专为 NAS、家庭服务器或树莓派设计的自托管推文保存工具。通过浏览器自动化一键将推文和媒体文件存档到本地——无需 Twitter API 密钥。
+专为 NAS、家庭服务器或树莓派设计的自托管内容保存工具。通过浏览器自动化一键将推文和小红书笔记（含图片和视频）存档到本地——无需 Twitter API 密钥。
 
 ![Python](https://img.shields.io/badge/Python-3.7%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![No API Key](https://img.shields.io/badge/Twitter%20API-不需要-brightgreen)
 
@@ -16,6 +16,7 @@
 
 - 自托管部署，可运行于任意 Linux 设备、NAS 或树莓派
 - 无需 Twitter API 密钥，使用 Playwright 浏览器自动化抓取
+- **小红书（XHS）支持** —— 通过 Telegram 机器人或 REST API 保存图文帖和视频
 - 支持单条推文归档（推文串抓取功能暂未支持）
 - 自动下载图片和视频
 - 生成多格式内容文件：纯文本、Markdown、Reader-mode HTML
@@ -25,7 +26,7 @@
 - 已保存页面支持瀑布加载和分页两种浏览模式（可切换）
 - 每条归档内容可生成唯一分享链接
 - 支持在 Web UI 用户菜单直接修改密码
-- 可选：Telegram 机器人——向私人 Bot 发送链接即可触发保存
+- 可选：Telegram 机器人——向私人 Bot 发送链接即可触发保存（支持 Twitter/X 和小红书）
 - 可选：基于 Gemini API 的 AI 智能标签生成
 - 可选：通过 FFmpeg 生成视频缩略图
 
@@ -105,6 +106,112 @@ docker compose up -d
 
 ---
 
+## 📕 小红书（XiaoHongShu）集成
+
+XHS 支持由 [agent-reach](https://github.com/Panniantong/agent-reach) 及其 `xiaohongshu-mcp` Docker 容器驱动。配置完成后，可通过 Telegram 机器人转发链接或调用 REST API 保存任意小红书笔记。
+
+### 前提条件
+
+- Docker
+- Node.js（用于 `mcporter` 和通过 npm 安装的 `yt-dlp`）
+
+### 配置步骤
+
+**1. 安装 agent-reach**
+
+```bash
+npm install -g agent-reach
+agent-reach install
+```
+
+**2. 启动小红书 MCP 服务器**
+
+```bash
+mkdir -p ~/.agent-reach/xhs
+touch ~/.agent-reach/xhs/cookies.json
+docker run -d --name xiaohongshu-mcp \
+  -p 18060:18060 \
+  -v ~/.agent-reach/xhs/cookies.json:/app/cookies.json \
+  xpzouying/xiaohongshu-mcp
+```
+
+**3. 配置 Cookie（需要登录）**
+
+在浏览器中登录 xiaohongshu.com，使用 [Cookie-Editor](https://cookie-editor.cgagnier.ca/) 导出 Cookie（JSON 格式），然后写入本地文件并同步至容器：
+
+```bash
+# 将导出的 JSON 写入本地
+cat > ~/.agent-reach/xhs/cookies.json << 'EOF'
+[ 粘贴 Cookie-Editor 导出的 JSON 数组 ]
+EOF
+
+# 同步至容器
+cat ~/.agent-reach/xhs/cookies.json | docker exec -i xiaohongshu-mcp sh -c 'cat > /app/cookies.json'
+docker restart xiaohongshu-mcp
+```
+
+**4. 注册 MCP 服务器**
+
+在 `~/.mcporter/mcporter.json` 中添加：
+
+```json
+{
+  "mcpServers": {
+    "xiaohongshu": { "baseUrl": "http://localhost:18060/mcp" }
+  }
+}
+```
+
+**5. 验证**
+
+```bash
+mcporter call 'xiaohongshu.list_feeds()'
+```
+
+### 保存小红书笔记
+
+**通过 Telegram 机器人** —— 转发或粘贴任意小红书链接，支持以下格式：
+- 完整链接：`https://www.xiaohongshu.com/explore/<id>?xsec_token=...`
+- App 分享文本：`标题~ http://xhslink.com/xxx 复制后打开【小红书】查看笔记！`（自动提取短链并跳转）
+
+机器人会回复标题、类型、文件数量和 `/view/<slug>` 分享链接。
+
+**通过 REST API：**
+
+```bash
+curl -X POST http://localhost:6201/api/submit/xhs \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.xiaohongshu.com/explore/<id>?xsec_token=<token>"}'
+```
+
+### 输出结构
+
+```
+saved_xhs/
+└── 2024-01-15_笔记标题_feedid/
+    ├── content.txt        # 纯文本描述
+    ├── content.md         # 含作者信息和互动数据的 Markdown
+    ├── metadata.json      # 完整 API 响应（不含评论）
+    ├── avatar.jpg         # 作者头像
+    ├── images/            # 图文帖：01.webp、02.webp……
+    ├── videos/            # 视频帖：<标题>.mp4
+    └── thumbnails/        # 视频封面图
+```
+
+### ⚠️ Cookie 使用须知
+
+> **Cookie 会定期过期。** 小红书的 `web_session` Cookie 通常在 **7～30 天**后失效。一旦 XHS 调用开始报错（"Expecting value"），需要重新从浏览器导出 Cookie 并按步骤 3 更新。
+>
+> **频繁使用可延长有效期。** 如果启用了定时自动存档功能（每 30～60 分钟运行一次），会话往往能保持更长时间；长时间不使用则会更快过期。
+>
+> **Cookie 等同于账号凭证。** Cookie 文件包含完整的登录会话信息，请妥善保管，不要泄露给他人或提交至公开代码仓库。
+>
+> **本工具不会存储或上传你的 Cookie。** Cookie 仅保存在本地（`~/.agent-reach/xhs/cookies.json`）并注入 Docker 容器，不会被发送到任何第三方服务器。
+>
+> **小红书服务条款。** 使用本工具须符合小红书服务条款，仅限个人存档用途，不得用于批量采集或商业目的，以免账号被封禁。
+
+---
+
 ## 🤖 Telegram 机器人——移动端首选
 
 手机或平板上最便捷的保存方式。通过 Twitter/X 原生分享功能，直接将推文分享给你的私人 Telegram 机器人，无需复制链接，无需切换 App。
@@ -166,12 +273,13 @@ docker compose up -d
 |---|---|
 | `/` | 提交 Twitter URL 开始归档 |
 | `/tasks` | 查看任务队列状态 |
-| `/saved` | 浏览和搜索已归档推文 |
+| `/saved` | 浏览和搜索已归档内容（Twitter + 小红书） |
 | `/tags` | 管理 AI 生成的标签 |
 | `/retries` | 查看失败任务并手动重试 |
 | `/view/<slug>` | 通过分享链接查看归档内容 |
 | `/debug` | 系统状态和卡死任务重置 |
 | `/telegram` | Telegram 机器人配置 |
+| `/xhs` | 小红书自动存档设置 |
 | `/help` | 油猴脚本安装说明 |
 
 ### 命令行
@@ -249,8 +357,10 @@ saved_tweets/
 
 - **仅供个人存档使用。** 本工具设计用途为个人保存公开内容，供离线阅读和个人研究。
 - **请遵守 Twitter/X 服务条款。** 使用本工具须符合 [Twitter/X 服务条款](https://twitter.com/en/tos)。用户对自身的使用行为及其法律合规性承担全部责任。
+- **请遵守小红书服务条款。** 使用小红书集成功能须符合小红书用户协议，仅限个人存档用途。
 - **禁止商业用途和大规模抓取。** 本工具不得用于商业目的、批量数据采集、训练机器学习模型或任何形式的大规模抓取行为。
-- **尊重他人版权。** 推文内容的版权归原作者所有，请勿在未经授权的情况下转载、分发或二次利用他人内容。
+- **尊重他人版权。** 内容的版权归原作者所有，请勿在未经授权的情况下转载、分发或二次利用他人内容。
+- **Cookie 安全。** 使用小红书功能需要提供浏览器 Cookie，这等同于你的账号登录凭证。请妥善保管，不要分享给他人或提交至任何公开仓库。
 - **作者不对滥用行为负责。** 本项目作者不对任何因滥用本工具而产生的法律问题、账号封禁或其他后果承担责任。
 
 ---
